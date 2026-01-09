@@ -1007,3 +1007,72 @@ Notes: [Any observations]
 ---
 
 **End of Document**
+
+
+## 7. Business Rules
+
+This section outlines the key business rules that govern the behavior of the Exam Security System. These rules ensure data integrity, security, and consistent operational workflows.
+
+### 7.1. BR-1: Exam Status Progression
+
+- **Description**: An exam must follow a specific lifecycle: DRAFT → ACTIVE → COMPLETED → ARCHIVED.
+- **Rationale**: Ensures that exams are properly configured before becoming active and are properly closed after completion.
+- **Validation**: The system will only allow status transitions in the specified order. For example, an exam cannot be moved from DRAFT to COMPLETED.
+- **Error Handling**: An error message will be displayed if an invalid status transition is attempted.
+- **Related Requirements**: FR-4, FR-5
+
+### 7.2. BR-2: Proctor-Exam Assignment
+
+- **Description**: A proctor must be assigned to an exam to perform check-ins and record violations for that exam.
+- **Rationale**: Enforces accountability and ensures that only authorized proctors can manage a specific exam session.
+- **Validation**: The system will check for a valid proctor-exam assignment before allowing any operational actions.
+- **Error Handling**: Access will be denied with a "Not authorized for this exam" message if a proctor attempts to access an unassigned exam.
+- **Related Requirements**: FR-2, FR-15
+
+### 7.3. BR-3: Identity Verification Threshold
+
+- **Description**: A confidence score of 75% or higher from the ML/CV service is required for an automatic identity match.
+- **Rationale**: Balances security with usability by setting a reasonable threshold for automated verification, reducing false positives while still flagging significant mismatches.
+- **Validation**: The system will check if `confidence_score >= 0.75` to determine the verification result.
+- **Error Handling**: Scores below 75% will be flagged as a "NO_MATCH", requiring manual review and override by the proctor.
+- **Related Requirements**: FR-14, FR-19
+
+### 7.4. BR-4: Account Lockout Policy
+
+- **Description**: A user account will be temporarily locked after 5 consecutive failed login attempts.
+- **Rationale**: Prevents brute-force attacks on user accounts.
+- **Validation**: The system will track the number of failed login attempts for each user.
+- **Error Handling**: After 5 failed attempts, the user account will be deactivated (`is_active = false`) and an administrator will need to reactivate it.
+- **Related Requirements**: FR-1
+
+### 7.5. BR-5: Violation-Check-In Association
+
+- **Description**: All recorded violations must be linked to a valid check-in record.
+- **Rationale**: Ensures traceability and context for every violation, linking it to a specific student and exam session.
+- **Validation**: A foreign key constraint (`check_in_id`) will enforce this relationship at the database level.
+- **Error Handling**: The system will prevent the creation of a violation if it is not associated with a valid check-in.
+- **Related Requirements**: FR-21
+
+### 7.6. BR-6: Seat Assignment Timing
+
+- **Description**: Seat assignments for an exam can only be created or modified before the exam start time.
+- **Rationale**: Prevents changes to the seating plan while an exam is in progress, ensuring stability and fairness.
+- **Validation**: The system will check if `current_time < exam.start_time` before allowing any modifications to the seating plan.
+- **Error Handling**: An error message will be displayed if a user attempts to modify the seating plan for an active or completed exam.
+- **Related Requirements**: FR-11
+
+### 7.7. BR-7: Photo Requirement for Verification
+
+- **Description**: A registered student photo is mandatory for the ML/CV identity verification process to run.
+- **Rationale**: The system cannot perform a comparison without a reference photo, which is the basis of the identity verification feature.
+- **Validation**: The system will check if the `registered_photo_path` is not NULL or empty for a student before initiating the check-in process.
+- **Error Handling**: If a student does not have a registered photo, the system will display a message indicating that automated verification is not possible and will require manual proctor approval.
+- **Related Requirements**: FR-13, FR-16
+
+### 7.8. BR-8: Role-Based Report Access
+
+- **Description**: Proctors can only view reports for exams they are assigned to, while Administrators can view reports for all exams.
+- **Rationale**: Enforces data privacy and the principle of least privilege, ensuring users can only access data relevant to their duties.
+- **Validation**: The system will filter report data based on the user's role and their exam assignments.
+- **Error Handling**: An HTTP 403 Forbidden error will be returned if a user attempts to access a report for which they are not authorized.
+- **Related Requirements**: FR-2, FR-25
