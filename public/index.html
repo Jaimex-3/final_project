@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Security System</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Login Page -->
+        <div id="loginPage" class="page active">
+            <div class="login-container">
+                <h1>🔐 Exam Security System</h1>
+                <h2>Login</h2>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" name="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Login</button>
+                    <div id="loginError" class="error-message"></div>
+                </form>
+                <div class="test-credentials">
+                    <p><strong>Test Credentials:</strong></p>
+                    <p>Admin: <code>admin1</code> / <code>Test123!</code></p>
+                    <p>Proctor: <code>proctor1</code> / <code>Test123!</code></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Page -->
+        <div id="dashboardPage" class="page">
+            <nav class="navbar">
+                <div class="navbar-brand">Exam Security System</div>
+                <div class="navbar-user">
+                    <span id="userInfo"></span>
+                    <button id="logoutBtn" class="btn btn-secondary">Logout</button>
+                </div>
+            </nav>
+
+            <div class="container">
+                <div class="dashboard">
+                    <h2>Dashboard</h2>
+                    <div class="dashboard-stats">
+                        <div class="stat-card">
+                            <h3>Total Exams</h3>
+                            <p id="totalExams">-</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Active Exams</h3>
+                            <p id="activeExams">-</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Check-Ins Today</h3>
+                            <p id="checkInsToday">-</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Violations</h3>
+                            <p id="totalViolations">-</p>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h3>Exams</h3>
+                        <div id="examsList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>
