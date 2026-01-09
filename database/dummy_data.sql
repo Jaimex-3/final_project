@@ -4,6 +4,18 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
+-- Clean existing data for idempotent import
+TRUNCATE TABLE audit_logs;
+TRUNCATE TABLE violations;
+TRUNCATE TABLE check_ins;
+TRUNCATE TABLE seat_assignments;
+TRUNCATE TABLE seating_plans;
+TRUNCATE TABLE exam_rosters;
+TRUNCATE TABLE students;
+TRUNCATE TABLE exams;
+TRUNCATE TABLE rooms;
+TRUNCATE TABLE users;
+
 -- Insert Rooms
 INSERT INTO rooms (room_code, room_name, building, floor, capacity, has_camera) VALUES
 ('A-101', 'Auditorium 101', 'Main', 1, 100, TRUE),
