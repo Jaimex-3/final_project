@@ -1,0 +1,155 @@
+erDiagram
+    USERS ||--o{ EXAMS : creates
+    USERS ||--o{ CHECK_INS : performs
+    USERS ||--o{ VIOLATIONS : reports
+    USERS ||--o{ VIOLATIONS : resolves
+    USERS ||--o{ SEATING_PLANS : creates
+    USERS ||--o{ AUDIT_LOGS : generates
+    
+    ROOMS ||--o{ EXAMS : hosts
+    ROOMS ||--o{ SEATING_PLANS : "used in"
+    
+    EXAMS ||--o{ EXAM_ROSTERS : contains
+    EXAMS ||--o{ SEATING_PLANS : has
+    EXAMS ||--o{ CHECK_INS : tracks
+    EXAMS ||--o{ VIOLATIONS : records
+    
+    STUDENTS ||--o{ EXAM_ROSTERS : "enrolled in"
+    STUDENTS ||--o{ SEAT_ASSIGNMENTS : "assigned to"
+    STUDENTS ||--o{ CHECK_INS : "checked in"
+    STUDENTS ||--o{ VIOLATIONS : "involved in"
+    
+    SEATING_PLANS ||--o{ SEAT_ASSIGNMENTS : contains
+    
+    CHECK_INS ||--o{ VIOLATIONS : "may have"
+    
+    USERS {
+        int user_id PK
+        varchar username UK
+        varchar password_hash
+        varchar email UK
+        enum role "PROCTOR, ADMIN"
+        varchar full_name
+        varchar phone
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+        timestamp last_login
+    }
+    
+    ROOMS {
+        int room_id PK
+        varchar room_code UK
+        varchar room_name
+        varchar building
+        int floor
+        int capacity
+        boolean has_camera
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    EXAMS {
+        int exam_id PK
+        varchar exam_code UK
+        varchar exam_name
+        date exam_date
+        time start_time
+        time end_time
+        int duration_minutes
+        int room_id FK
+        enum status "DRAFT, ACTIVE, COMPLETED, ARCHIVED"
+        int created_by FK
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    STUDENTS {
+        int student_id PK
+        varchar student_number UK
+        varchar first_name
+        varchar last_name
+        varchar email UK
+        varchar phone
+        varchar registered_photo_path
+        int enrollment_year
+        varchar major
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    EXAM_ROSTERS {
+        int roster_id PK
+        int exam_id FK
+        int student_id FK
+        varchar assigned_seat
+        timestamp created_at
+    }
+    
+    SEATING_PLANS {
+        int seating_plan_id PK
+        int exam_id FK
+        int room_id FK
+        int total_rows
+        int total_columns
+        enum layout_type "GRID, CUSTOM"
+        int created_by FK
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    SEAT_ASSIGNMENTS {
+        int assignment_id PK
+        int seating_plan_id FK
+        int student_id FK
+        varchar seat_code
+        int row_number
+        int column_number
+        timestamp assigned_at
+    }
+    
+    CHECK_INS {
+        int check_in_id PK
+        int exam_id FK
+        int student_id FK
+        int proctor_id FK
+        timestamp check_in_time
+        varchar captured_photo_path
+        enum verification_result "MATCH, NO_MATCH, OVERRIDE, PENDING"
+        decimal confidence_score
+        varchar assigned_seat
+        varchar actual_seat
+        boolean seat_match
+        text notes
+        timestamp created_at
+    }
+    
+    VIOLATIONS {
+        int violation_id PK
+        int check_in_id FK
+        int exam_id FK
+        int student_id FK
+        int reported_by FK
+        enum violation_type "IDENTITY_MISMATCH, SEAT_MISMATCH, UNAUTHORIZED_MATERIALS, DISRUPTIVE_BEHAVIOR, LATE_ARRIVAL, OTHER"
+        enum severity "LOW, MEDIUM, HIGH"
+        text description
+        varchar evidence_photo_path
+        timestamp reported_at
+        enum status "RECORDED, REVIEWED, RESOLVED, DISMISSED"
+        text resolution_notes
+        timestamp resolved_at
+        int resolved_by FK
+    }
+    
+    AUDIT_LOGS {
+        int log_id PK
+        int user_id FK
+        varchar action_type
+        varchar table_name
+        int record_id
+        text old_value
+        text new_value
+        varchar ip_address
+        timestamp timestamp
+    }

@@ -1,0 +1,63 @@
+sequenceDiagram
+    participant A as Administrator
+    participant UI as Web Interface
+    participant API as Backend Server
+    participant DB as Database
+    participant RG as Report Generator
+    participant FS as File Storage
+    
+    Note over A,FS: Report Generation Workflow
+    
+    A->>UI: Navigate to Reports page
+    UI->>API: GET /exams (fetch exam list)
+    API->>DB: SELECT * FROM exams ORDER BY exam_date DESC
+    DB-->>API: Return exam list
+    API-->>UI: Return exams
+    UI-->>A: Display report options and exam selector
+    
+    A->>UI: Select report type (e.g., "Violation Report")
+    A->>UI: Select exam (e.g., "CS101 Final Exam")
+    A->>UI: Set filters (date_range, severity, status)
+    A->>UI: Click "Generate Report"
+    
+    UI->>API: POST /reports/generate<br/>{type: 'violations', exam_id: 123,<br/>filters: {severity: 'HIGH', status: 'RECORDED'}}
+    
+    API->>DB: Complex JOIN query:<br/>SELECT v.*, s.student_number, s.first_name,<br/>s.last_name, e.exam_name, u.username<br/>FROM violations v<br/>JOIN students s ON v.student_id = s.student_id<br/>JOIN exams e ON v.exam_id = e.exam_id<br/>JOIN users u ON v.reported_by = u.user_id<br/>WHERE v.exam_id = 123<br/>AND v.severity = 'HIGH'<br/>AND v.status = 'RECORDED'<br/>ORDER BY v.reported_at DESC
+    
+    DB-->>API: Return result set (e.g., 15 violations)
+    
+    API->>RG: Format data for report<br/>(calculate statistics, group by type)
+    RG->>RG: Calculate summary:<br/>- Total violations: 15<br/>- By type: Identity(3), Seat(5), Materials(7)<br/>- By severity: High(15)<br/>- Resolution rate: 0%
+    
+    RG-->>API: Return formatted report data + summary
+    
+    API-->>UI: Return report JSON<br/>{data: [...], summary: {...}, metadata: {...}}
+    
+    UI-->>A: Display report in table format<br/>Show summary statistics<br/>Display export options
+    
+    alt Export to CSV
+        A->>UI: Click "Export to CSV"
+        UI->>API: GET /reports/{report_id}/export?format=csv
+        API->>RG: Convert data to CSV format
+        RG-->>API: Return CSV file
+        API-->>UI: Return CSV file
+        UI-->>A: Download violations_report_2026-01-09.csv
+    else Export to PDF
+        A->>UI: Click "Export to PDF"
+        UI->>API: GET /reports/{report_id}/export?format=pdf
+        API->>RG: Convert data to PDF format<br/>(include charts, formatting)
+        RG->>FS: Save PDF temporarily
+        FS-->>RG: Return file path
+        RG-->>API: Return PDF file
+        API-->>UI: Return PDF file
+        UI-->>A: Download violations_report_2026-01-09.pdf
+    else Print Report
+        A->>UI: Click "Print"
+        UI->>UI: Open print dialog<br/>Format for printing
+        UI-->>A: Print preview displayed
+    end
+    
+    API->>DB: INSERT INTO audit_logs<br/>(user_id, action_type='report_generated',<br/>table_name='reports', new_value=report_metadata)
+    DB-->>API: Confirm audit log
+    
+    Note over A,FS: Report generation complete
