@@ -21,18 +21,18 @@
 │   └── JIRA_PLANNING.md
 ├── package-lock.json
 ├── package.json
-├── public
-│   ├── css
-│   │   └── style.css
-│   ├── index.html
-│   └── js
-│       └── app.js
 ├── src
 │   ├── config
 │   │   └── database.js
 │   ├── middleware
 │   │   └── auth.js
 │   ├── ml_service.py
+│   ├── public
+│   │   ├── css
+│   │   │   └── style.css
+│   │   ├── index.html
+│   │   └── js
+│   │       └── app.js
 │   ├── routes
 │   │   ├── auth.js
 │   │   ├── checkins.js

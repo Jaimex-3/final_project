@@ -31,8 +31,8 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static files (uploads)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Serve frontend static files
-app.use(express.static(path.join(__dirname, '../public')));
+// Serve frontend static files (now under src/public)
+app.use(express.static(path.join(__dirname, './public')));
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -70,7 +70,7 @@ app.get('/api', (req, res) => {
 
 // Serve frontend for all other routes (SPA support)
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/index.html'));
+    res.sendFile(path.join(__dirname, './public/index.html'));
 });
 
 // Error handling middleware

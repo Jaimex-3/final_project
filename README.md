@@ -61,7 +61,7 @@ final_project/
 │   │   └── audit.js
 │   ├── ml_service.py   # Python ML/CV service
 │   └── server.js       # Main server file
-├── public/             # Frontend files
+├── src/public/         # Frontend files
 │   ├── css/
 │   │   └── style.css
 │   ├── js/
