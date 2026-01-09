@@ -1,225 +1,159 @@
--- Exam Security System - Database Schema
--- Version: 2.0 (Updated according to requirements)
--- Date: January 2026
+-- Schema for Exam Security System (MariaDB)
+CREATE DATABASE IF NOT EXISTS exam_security CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE exam_security;
 
--- Drop tables if they exist (for clean setup)
-DROP TABLE IF EXISTS audit_logs;
+SET NAMES utf8mb4;
+
+-- Drop existing tables (order matters for FKs)
 DROP TABLE IF EXISTS violations;
-DROP TABLE IF EXISTS check_ins;
+DROP TABLE IF EXISTS checkins;
+DROP TABLE IF EXISTS student_reference_photos;
 DROP TABLE IF EXISTS seat_assignments;
+DROP TABLE IF EXISTS exam_students;
+DROP TABLE IF EXISTS seats;
 DROP TABLE IF EXISTS seating_plans;
-DROP TABLE IF EXISTS exam_rosters;
-DROP TABLE IF EXISTS students;
 DROP TABLE IF EXISTS exams;
 DROP TABLE IF EXISTS rooms;
+DROP TABLE IF EXISTS students;
 DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS roles;
 
--- Users Table
+CREATE TABLE roles (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(32) NOT NULL UNIQUE,
+    description VARCHAR(255)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE users (
-    user_id INT PRIMARY KEY AUTO_INCREMENT,
-    username VARCHAR(50) UNIQUE NOT NULL,
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    role_id INT NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    full_name VARCHAR(255) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
-    role ENUM('PROCTOR', 'ADMIN') NOT NULL,
-    full_name VARCHAR(200),
-    phone VARCHAR(20),
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    last_login TIMESTAMP NULL,
-    INDEX idx_username (username),
-    INDEX idx_email (email),
-    INDEX idx_role (role)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Rooms Table (NEW)
-CREATE TABLE rooms (
-    room_id INT PRIMARY KEY AUTO_INCREMENT,
-    room_code VARCHAR(50) UNIQUE NOT NULL,
-    room_name VARCHAR(255) NOT NULL,
-    building VARCHAR(100),
-    floor INT,
-    capacity INT NOT NULL,
-    has_camera BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_room_code (room_code),
-    INDEX idx_building (building)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Exams Table (UPDATED with room_id FK)
-CREATE TABLE exams (
-    exam_id INT PRIMARY KEY AUTO_INCREMENT,
-    exam_code VARCHAR(50) UNIQUE NOT NULL,
-    exam_name VARCHAR(255) NOT NULL,
-    exam_date DATE NOT NULL,
-    start_time TIME NOT NULL,
-    end_time TIME NOT NULL,
-    duration_minutes INT NOT NULL,
-    room_id INT,
-    status ENUM('DRAFT', 'ACTIVE', 'COMPLETED', 'ARCHIVED') DEFAULT 'DRAFT',
-    created_by INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (room_id) REFERENCES rooms(room_id) ON DELETE SET NULL,
-    FOREIGN KEY (created_by) REFERENCES users(user_id),
-    INDEX idx_exam_code (exam_code),
-    INDEX idx_exam_date (exam_date),
-    INDEX idx_status (status),
-    INDEX idx_room_id (room_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Students Table (UPDATED with additional fields)
 CREATE TABLE students (
-    student_id INT PRIMARY KEY AUTO_INCREMENT,
-    student_number VARCHAR(50) UNIQUE NOT NULL,
-    first_name VARCHAR(100) NOT NULL,
-    last_name VARCHAR(100) NOT NULL,
-    email VARCHAR(100) UNIQUE,
-    phone VARCHAR(20),
-    registered_photo_path VARCHAR(255),
-    enrollment_year INT,
-    major VARCHAR(100),
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_student_number (student_number),
-    INDEX idx_email (email),
-    INDEX idx_enrollment_year (enrollment_year)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_number VARCHAR(50) NOT NULL UNIQUE,
+    full_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Exam Rosters Table (kept for backward compatibility)
-CREATE TABLE exam_rosters (
-    roster_id INT PRIMARY KEY AUTO_INCREMENT,
+CREATE TABLE rooms (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    capacity INT NOT NULL,
+    location VARCHAR(255)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE exams (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    room_id INT,
+    start_at DATETIME NOT NULL,
+    end_at DATETIME NOT NULL,
+    created_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE SET NULL,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE seating_plans (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    exam_id INT NOT NULL,
+    room_id INT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    created_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_seating_plan_exam_name (exam_id, name),
+    KEY idx_seating_plan_id_exam (id, exam_id),
+    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE,
+    FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE RESTRICT,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE seats (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    seating_plan_id INT NOT NULL,
+    seat_code VARCHAR(50) NOT NULL,
+    row_number INT NOT NULL,
+    col_number INT NOT NULL,
+    UNIQUE KEY uq_seat_code_per_plan (seating_plan_id, seat_code),
+    UNIQUE KEY uq_seat_position_per_plan (seating_plan_id, row_number, col_number),
+    FOREIGN KEY (seating_plan_id) REFERENCES seating_plans(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE exam_students (
     exam_id INT NOT NULL,
     student_id INT NOT NULL,
-    assigned_seat VARCHAR(50),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (exam_id) REFERENCES exams(exam_id) ON DELETE CASCADE,
-    FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE,
-    UNIQUE KEY unique_exam_student (exam_id, student_id),
-    INDEX idx_exam_id (exam_id),
-    INDEX idx_student_id (student_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    status ENUM('enrolled', 'dropped') NOT NULL DEFAULT 'enrolled',
+    PRIMARY KEY (exam_id, student_id),
+    FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Seating Plans Table (UPDATED with room_id FK)
-CREATE TABLE seating_plans (
-    seating_plan_id INT PRIMARY KEY AUTO_INCREMENT,
-    exam_id INT NOT NULL,
-    room_id INT,
-    total_rows INT,
-    total_columns INT,
-    layout_type ENUM('GRID', 'CUSTOM') DEFAULT 'GRID',
-    created_by INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (exam_id) REFERENCES exams(exam_id) ON DELETE CASCADE,
-    FOREIGN KEY (room_id) REFERENCES rooms(room_id) ON DELETE SET NULL,
-    FOREIGN KEY (created_by) REFERENCES users(user_id),
-    INDEX idx_exam_id (exam_id),
-    INDEX idx_room_id (room_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Seat Assignments Table (RENAMED from seats, UPDATED structure)
 CREATE TABLE seat_assignments (
-    assignment_id INT PRIMARY KEY AUTO_INCREMENT,
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    exam_id INT NOT NULL,
     seating_plan_id INT NOT NULL,
     student_id INT NOT NULL,
     seat_code VARCHAR(50) NOT NULL,
-    row_number INT,
-    column_number INT,
-    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (seating_plan_id) REFERENCES seating_plans(seating_plan_id) ON DELETE CASCADE,
-    FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE,
-    UNIQUE KEY unique_plan_student (seating_plan_id, student_id),
-    UNIQUE KEY unique_plan_seat (seating_plan_id, seat_code),
-    INDEX idx_seating_plan_id (seating_plan_id),
-    INDEX idx_student_id (student_id),
-    INDEX idx_seat_code (seat_code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    assigned_by INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_assignment_exam_student (exam_id, student_id),
+    UNIQUE KEY uq_assignment_exam_seat (exam_id, seat_code),
+    FOREIGN KEY (exam_id, student_id) REFERENCES exam_students(exam_id, student_id) ON DELETE CASCADE,
+    FOREIGN KEY (seating_plan_id, exam_id) REFERENCES seating_plans(id, exam_id) ON DELETE CASCADE,
+    FOREIGN KEY (seating_plan_id, seat_code) REFERENCES seats(seating_plan_id, seat_code) ON DELETE RESTRICT,
+    FOREIGN KEY (assigned_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Check-Ins Table (UPDATED with additional fields)
-CREATE TABLE check_ins (
-    check_in_id INT PRIMARY KEY AUTO_INCREMENT,
+CREATE TABLE student_reference_photos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NOT NULL,
+    image_path VARCHAR(255) NOT NULL,
+    embedding_hash VARCHAR(255),
+    metadata JSON NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_student_image_path (student_id, image_path),
+    FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE checkins (
+    id INT AUTO_INCREMENT PRIMARY KEY,
     exam_id INT NOT NULL,
     student_id INT NOT NULL,
-    proctor_id INT NOT NULL,
-    check_in_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    captured_photo_path VARCHAR(255),
-    verification_result ENUM('MATCH', 'NO_MATCH', 'OVERRIDE', 'PENDING') NOT NULL,
-    confidence_score DECIMAL(5,2),
-    assigned_seat VARCHAR(50),
-    actual_seat VARCHAR(50),
-    seat_match BOOLEAN,
+    seating_plan_id INT,
+    seat_assignment_id INT,
+    seat_code_entered VARCHAR(50),
+    is_face_match TINYINT(1) NOT NULL DEFAULT 0,
+    is_seat_ok TINYINT(1) NOT NULL DEFAULT 0,
+    decision_status ENUM('pending', 'approved', 'denied') NOT NULL DEFAULT 'pending',
+    checked_in_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (exam_id) REFERENCES exams(exam_id) ON DELETE CASCADE,
-    FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE,
-    FOREIGN KEY (proctor_id) REFERENCES users(user_id),
-    UNIQUE KEY unique_exam_student_checkin (exam_id, student_id),
-    INDEX idx_exam_id (exam_id),
-    INDEX idx_student_id (student_id),
-    INDEX idx_proctor_id (proctor_id),
-    INDEX idx_verification_result (verification_result),
-    INDEX idx_check_in_time (check_in_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    UNIQUE KEY uq_checkins_exam_student (exam_id, student_id),
+    FOREIGN KEY (exam_id, student_id) REFERENCES exam_students(exam_id, student_id) ON DELETE CASCADE,
+    FOREIGN KEY (seat_assignment_id) REFERENCES seat_assignments(id) ON DELETE SET NULL,
+    FOREIGN KEY (seating_plan_id) REFERENCES seating_plans(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Violations Table (UPDATED with check_in_id FK and additional fields)
 CREATE TABLE violations (
-    violation_id INT PRIMARY KEY AUTO_INCREMENT,
-    check_in_id INT,
+    id INT AUTO_INCREMENT PRIMARY KEY,
     exam_id INT NOT NULL,
     student_id INT NOT NULL,
-    reported_by INT NOT NULL,
-    violation_type ENUM('IDENTITY_MISMATCH', 'SEAT_MISMATCH', 'UNAUTHORIZED_MATERIALS', 
-                        'DISRUPTIVE_BEHAVIOR', 'LATE_ARRIVAL', 'OTHER') NOT NULL,
-    severity ENUM('LOW', 'MEDIUM', 'HIGH') NOT NULL,
-    description TEXT,
-    evidence_photo_path VARCHAR(255),
-    reported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status ENUM('RECORDED', 'REVIEWED', 'RESOLVED', 'DISMISSED') DEFAULT 'RECORDED',
-    resolution_notes TEXT,
-    resolved_at TIMESTAMP NULL,
-    resolved_by INT,
-    FOREIGN KEY (check_in_id) REFERENCES check_ins(check_in_id) ON DELETE SET NULL,
-    FOREIGN KEY (exam_id) REFERENCES exams(exam_id) ON DELETE CASCADE,
-    FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE,
-    FOREIGN KEY (reported_by) REFERENCES users(user_id),
-    FOREIGN KEY (resolved_by) REFERENCES users(user_id),
-    INDEX idx_check_in_id (check_in_id),
-    INDEX idx_exam_id (exam_id),
-    INDEX idx_student_id (student_id),
-    INDEX idx_reported_by (reported_by),
-    INDEX idx_violation_type (violation_type),
-    INDEX idx_severity (severity),
-    INDEX idx_status (status),
-    INDEX idx_reported_at (reported_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Audit Logs Table (UPDATED with additional fields)
-CREATE TABLE audit_logs (
-    log_id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT,
-    action_type VARCHAR(100) NOT NULL,
-    table_name VARCHAR(100),
-    record_id INT,
-    old_value TEXT,
-    new_value TEXT,
-    ip_address VARCHAR(45),
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL,
-    INDEX idx_user_id (user_id),
-    INDEX idx_action_type (action_type),
-    INDEX idx_table_name (table_name),
-    INDEX idx_timestamp (timestamp)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Insert default admin user (password: Test123!)
-INSERT INTO users (username, password_hash, email, role, full_name, is_active) VALUES
-('admin1', '$2b$10$YourHashedPasswordHere', 'admin@examSecurity.com', 'ADMIN', 'System Administrator', TRUE);
-
--- Insert sample rooms
-INSERT INTO rooms (room_code, room_name, building, floor, capacity, has_camera) VALUES
-('A-101', 'Lecture Hall A-101', 'Main Building', 1, 100, TRUE),
-('B-201', 'Computer Lab B-201', 'Science Building', 2, 50, TRUE),
-('C-301', 'Auditorium C-301', 'Arts Building', 3, 200, TRUE);
+    checkin_id INT,
+    reason VARCHAR(255) NOT NULL,
+    notes TEXT,
+    evidence_image_path VARCHAR(255),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (exam_id, student_id) REFERENCES exam_students(exam_id, student_id) ON DELETE CASCADE,
+    FOREIGN KEY (checkin_id) REFERENCES checkins(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
