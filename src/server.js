@@ -68,8 +68,8 @@ app.get('/api', (req, res) => {
     });
 });
 
-// Serve frontend for all other routes (SPA support)
-app.get('/*', (req, res) => {
+// Serve frontend for all other routes (SPA support) - Express 5 requires named wildcard
+app.get('/:path(*)', (req, res) => {
     res.sendFile(path.join(__dirname, './public/index.html'));
 });
 
