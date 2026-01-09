@@ -6,6 +6,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const multer = require('multer');
 require('dotenv').config();
 
 const { testConnection } = require('./config/database');
@@ -15,6 +16,9 @@ const authRoutes = require('./routes/auth');
 const examRoutes = require('./routes/exams');
 const checkInRoutes = require('./routes/checkins');
 const violationRoutes = require('./routes/violations');
+const rosterRoutes = require('./routes/rosters');
+const seatingRoutes = require('./routes/seating');
+const reportRoutes = require('./routes/reports');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -35,6 +39,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/exams', examRoutes);
 app.use('/api/checkins', checkInRoutes);
 app.use('/api/violations', violationRoutes);
+app.use('/api/rosters', rosterRoutes);
+app.use('/api/seating', seatingRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

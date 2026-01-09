@@ -69,6 +69,115 @@
                         <h3>Exams</h3>
                         <div id="examsList"></div>
                     </div>
+
+                    <div class="section">
+                        <h3>Roster Management</h3>
+                        <div class="two-col">
+                            <form id="importRosterForm" class="card">
+                                <h4>Import Roster (CSV)</h4>
+                                <label>Exam</label>
+                                <select id="importExamSelect" required></select>
+                                <label>CSV File</label>
+                                <input type="file" id="rosterFile" accept=".csv" required />
+                                <button type="submit" class="btn btn-primary">Upload</button>
+                                <div class="hint">CSV columns: StudentID,FirstName,LastName,Email,RegistrationNumber</div>
+                                <div id="rosterImportResult" class="info"></div>
+                            </form>
+                            <form id="addStudentForm" class="card">
+                                <h4>Manual Student Entry</h4>
+                                <label>Student Number</label>
+                                <input type="text" id="studentNumber" required />
+                                <label>First Name</label>
+                                <input type="text" id="studentFirstName" required />
+                                <label>Last Name</label>
+                                <input type="text" id="studentLastName" required />
+                                <label>Email</label>
+                                <input type="email" id="studentEmail" />
+                                <label>Registration Number</label>
+                                <input type="text" id="registrationNumber" />
+                                <button type="submit" class="btn btn-primary">Add Student</button>
+                                <div id="addStudentResult" class="info"></div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h3>Seating Plan</h3>
+                        <form id="createSeatingForm" class="card">
+                            <label>Exam</label>
+                            <select id="seatingExamSelect" required></select>
+                            <label>Rows</label>
+                            <input type="number" id="seatingRows" min="1" value="5" required />
+                            <label>Columns</label>
+                            <input type="number" id="seatingColumns" min="1" value="5" required />
+                            <button type="submit" class="btn btn-primary">Generate Grid Seating</button>
+                            <div id="seatingResult" class="info"></div>
+                        </form>
+                    </div>
+
+                    <div class="section">
+                        <h3>Check-In</h3>
+                        <form id="checkInForm" class="card" enctype="multipart/form-data">
+                            <label>Exam</label>
+                            <select id="checkInExamSelect" required></select>
+                            <label>Student ID</label>
+                            <input type="number" id="checkInStudentId" required />
+                            <label>Actual Seat (optional)</label>
+                            <input type="text" id="checkInSeat" placeholder="e.g., B3" />
+                            <label>Notes</label>
+                            <input type="text" id="checkInNotes" />
+                            <label>Photo</label>
+                            <input type="file" id="checkInPhoto" accept="image/*" required />
+                            <button type="submit" class="btn btn-primary">Check In</button>
+                            <div id="checkInResult" class="info"></div>
+                        </form>
+                    </div>
+
+                    <div class="section">
+                        <h3>Violations</h3>
+                        <form id="violationForm" class="card" enctype="multipart/form-data">
+                            <label>Exam</label>
+                            <select id="violationExamSelect" required></select>
+                            <label>Student ID</label>
+                            <input type="number" id="violationStudentId" required />
+                            <label>Category</label>
+                            <select id="violationCategory" required>
+                                <option value="IDENTITY_MISMATCH">Identity Mismatch</option>
+                                <option value="SEAT_MISMATCH">Seat Mismatch</option>
+                                <option value="UNAUTHORIZED_MATERIALS">Unauthorized Materials</option>
+                                <option value="DISRUPTIVE_BEHAVIOR">Disruptive Behavior</option>
+                                <option value="LATE_ARRIVAL">Late Arrival</option>
+                                <option value="OTHER">Other</option>
+                            </select>
+                            <label>Severity</label>
+                            <select id="violationSeverity" required>
+                                <option value="LOW">Low</option>
+                                <option value="MEDIUM">Medium</option>
+                                <option value="HIGH">High</option>
+                            </select>
+                            <label>Reason</label>
+                            <input type="text" id="violationReason" required />
+                            <label>Evidence (optional)</label>
+                            <input type="file" id="violationEvidence" accept="image/*" />
+                            <button type="submit" class="btn btn-primary">Record Violation</button>
+                            <div id="violationResult" class="info"></div>
+                        </form>
+                    </div>
+
+                    <div class="section">
+                        <h3>Reports</h3>
+                        <form id="reportForm" class="card">
+                            <label>Exam</label>
+                            <select id="reportExamSelect" required></select>
+                            <div class="report-actions">
+                                <button type="button" data-report="checkins" class="btn btn-secondary">Check-Ins</button>
+                                <button type="button" data-report="mismatches" class="btn btn-secondary">Mismatches</button>
+                                <button type="button" data-report="violations" class="btn btn-secondary">Violations</button>
+                                <button type="button" data-report="summary" class="btn btn-primary">Summary</button>
+                            </div>
+                            <pre id="reportOutput" class="report-output"></pre>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>

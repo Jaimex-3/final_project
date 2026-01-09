@@ -125,6 +125,7 @@ cp .env.example .env
 # DB_USER=root
 # DB_PASSWORD=your_password
 # DB_NAME=exam_security_system
+# DB_PORT=3306
 ```
 
 ### Step 5: Run Application
@@ -138,6 +139,18 @@ npm start
 ```
 
 The application will be available at: **http://localhost:3000**
+
+### Using XAMPP MariaDB (Windows/Mac/Linux)
+- Start the MySQL/MariaDB service from XAMPP Control Panel.
+- Default credentials are often `root` with an empty password; set `DB_USER=root`, leave `DB_PASSWORD` blank in `.env`.
+- Ensure the port matches XAMPP’s MySQL/MariaDB port (commonly `3306`); adjust `DB_PORT` if XAMPP uses a different port.
+- Import schema and dummy data via the XAMPP `mysql` CLI or phpMyAdmin:
+  ```bash
+  mysql -u root --port=3306 -e "CREATE DATABASE exam_security_system;"
+  mysql -u root --port=3306 exam_security_system < database/schema.sql
+  mysql -u root --port=3306 exam_security_system < database/dummy_data.sql
+  ```
+  Add `-p` if you configured a root password.
 
 ## 🔐 Test Credentials
 

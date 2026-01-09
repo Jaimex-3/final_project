@@ -1,6 +1,6 @@
--- Exam Security System Database Schema
--- Version: 1.0
--- Date: January 2026
+
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
 
 -- Drop tables if they exist (for clean setup)
 DROP TABLE IF EXISTS audit_logs;
@@ -28,7 +28,7 @@ CREATE TABLE users (
     last_login TIMESTAMP NULL,
     INDEX idx_username (username),
     INDEX idx_email (email)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Exams Table
 CREATE TABLE exams (
@@ -48,7 +48,7 @@ CREATE TABLE exams (
     INDEX idx_exam_code (exam_code),
     INDEX idx_exam_date (exam_date),
     INDEX idx_status (status)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Students Table
 CREATE TABLE students (
@@ -63,7 +63,7 @@ CREATE TABLE students (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_student_number (student_number),
     INDEX idx_email (email)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Exam Rosters Table
 CREATE TABLE exam_rosters (
@@ -77,7 +77,7 @@ CREATE TABLE exam_rosters (
     UNIQUE KEY unique_exam_student (exam_id, student_id),
     INDEX idx_exam_id (exam_id),
     INDEX idx_student_id (student_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Seating Plans Table
 CREATE TABLE seating_plans (
@@ -94,7 +94,7 @@ CREATE TABLE seating_plans (
     FOREIGN KEY (exam_id) REFERENCES exams(exam_id) ON DELETE CASCADE,
     FOREIGN KEY (created_by) REFERENCES users(user_id),
     INDEX idx_exam_id (exam_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Seats Table
 CREATE TABLE seats (
@@ -111,7 +111,7 @@ CREATE TABLE seats (
     UNIQUE KEY unique_seat_code (seating_plan_id, seat_code),
     INDEX idx_seating_plan_id (seating_plan_id),
     INDEX idx_seat_code (seat_code)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Check-Ins Table
 CREATE TABLE check_ins (
@@ -133,7 +133,7 @@ CREATE TABLE check_ins (
     INDEX idx_exam_id (exam_id),
     INDEX idx_student_id (student_id),
     INDEX idx_check_in_timestamp (check_in_timestamp)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Violations Table
 CREATE TABLE violations (
@@ -160,7 +160,7 @@ CREATE TABLE violations (
     INDEX idx_student_id (student_id),
     INDEX idx_violation_category (violation_category),
     INDEX idx_status (status)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Audit Logs Table
 CREATE TABLE audit_logs (
@@ -177,4 +177,6 @@ CREATE TABLE audit_logs (
     INDEX idx_user_id (user_id),
     INDEX idx_timestamp (timestamp),
     INDEX idx_action (action)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET FOREIGN_KEY_CHECKS = 1;

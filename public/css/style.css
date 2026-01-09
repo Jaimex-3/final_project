@@ -221,6 +221,61 @@ body {
     font-size: 22px;
 }
 
+.two-col {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 15px;
+}
+
+.card {
+    background: #f8f9fa;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 15px;
+    display: grid;
+    gap: 10px;
+}
+
+.card label {
+    font-weight: 600;
+    color: #333;
+    font-size: 13px;
+}
+
+.card input,
+.card select {
+    padding: 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.hint {
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.info {
+    font-size: 13px;
+    color: #2563eb;
+}
+
+.report-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 10px 0;
+}
+
+.report-output {
+    background: #111827;
+    color: #e5e7eb;
+    padding: 12px;
+    border-radius: 8px;
+    min-height: 120px;
+    overflow: auto;
+}
+
 /* Exams List */
 #examsList {
     display: grid;

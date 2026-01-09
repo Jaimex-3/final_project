@@ -6,11 +6,12 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const { exec } = require('child_process');
 const { pool } = require('../config/database');
 const { authenticateToken, requireProctorOrAdmin } = require('../middleware/auth');
 const { logAudit } = require('../utils/audit');
 const fs = require('fs').promises;
+const { runVerification } = require('../utils/ml');
+const { validateSeatAssignment } = require('../utils/seating');
 
 const router = express.Router();
 
@@ -169,6 +170,22 @@ router.post('/', upload.single('photo'), async (req, res) => {
         const capturedPhotoPath = req.file.path;
         const registeredPhotoPath = student[0].registered_photo_path;
 
+        // Validate seat if provided
+        if (actualSeat) {
+            const [seatRows] = await pool.query(
+                `SELECT seat_code FROM seats 
+                 WHERE seat_code = ? AND seating_plan_id IN (
+                    SELECT seating_plan_id FROM seating_plans WHERE exam_id = ?
+                 )`,
+                [actualSeat, examId]
+            );
+            const seatSet = new Set(seatRows.map(s => s.seat_code));
+            const validation = validateSeatAssignment(actualSeat, seatSet);
+            if (!validation.valid) {
+                return res.status(400).json({ success: false, message: validation.message });
+            }
+        }
+
         // Perform ML verification
         let verificationResult = {
             success: false,
@@ -177,39 +194,8 @@ router.post('/', upload.single('photo'), async (req, res) => {
         };
 
         if (registeredPhotoPath && registeredPhotoPath !== '') {
-            // Call Python ML service
-            const mlServicePath = path.join(__dirname, '../ml_service.py');
             const fullRegisteredPath = path.join(__dirname, '../../', registeredPhotoPath);
-
-            verificationResult = await new Promise((resolve, reject) => {
-                exec(
-                    `python3 "${mlServicePath}" "${capturedPhotoPath}" "${fullRegisteredPath}"`,
-                    (error, stdout, stderr) => {
-                        if (error) {
-                            console.error('ML service error:', error);
-                            resolve({
-                                success: false,
-                                confidence_score: 0,
-                                is_match: false,
-                                error: error.message
-                            });
-                        } else {
-                            try {
-                                const result = JSON.parse(stdout);
-                                resolve(result);
-                            } catch (parseError) {
-                                console.error('ML service parse error:', parseError);
-                                resolve({
-                                    success: false,
-                                    confidence_score: 0,
-                                    is_match: false,
-                                    error: 'Failed to parse ML service response'
-                                });
-                            }
-                        }
-                    }
-                );
-            });
+            verificationResult = await runVerification(capturedPhotoPath, fullRegisteredPath);
         }
 
         // Determine verification result

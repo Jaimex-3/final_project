@@ -2,6 +2,9 @@
 -- Version: 1.0
 -- Date: January 2026
 
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+
 -- Insert Users (password is 'Test123!' hashed with bcrypt)
 -- Hash generated using: bcrypt.hashSync('Test123!', 10)
 INSERT INTO users (username, password_hash, email, role, first_name, last_name) VALUES
@@ -158,3 +161,5 @@ INSERT INTO audit_logs (user_id, action, entity_type, entity_id, old_value, new_
 (4, 'CHECK_IN_STUDENT', 'CHECK_IN', 4, NULL, '{"student_id":8,"result":"MATCH"}', '192.168.1.106'),
 (2, 'UPDATE_EXAM_STATUS', 'EXAM', 2, '{"status":"DRAFT"}', '{"status":"ACTIVE"}', '192.168.1.101'),
 (1, 'GENERATE_REPORT', 'REPORT', NULL, NULL, '{"type":"CHECK_IN","exam_id":2}', '192.168.1.100');
+
+SET FOREIGN_KEY_CHECKS = 1;
