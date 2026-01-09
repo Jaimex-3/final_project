@@ -88,6 +88,53 @@ router.post('/student', requireAdmin, async (req, res) => {
 });
 
 /**
+ * POST /api/rosters/exam/:examId/student
+ * Add an existing student to an exam roster
+ */
+router.post('/exam/:examId/student', requireAdmin, async (req, res) => {
+    try {
+        const { examId } = req.params;
+        const { studentId, assignedSeat } = req.body;
+        if (!studentId) {
+            return res.status(400).json({ success: false, message: 'studentId is required' });
+        }
+
+        await pool.query(
+            `INSERT INTO exam_rosters (exam_id, student_id, assigned_seat)
+             VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE assigned_seat = VALUES(assigned_seat)`,
+            [examId, studentId, assignedSeat || null]
+        );
+
+        await logAudit(req.user.userId, 'ADD_STUDENT_TO_ROSTER', 'EXAM_ROSTER', null, null, { examId, studentId, assignedSeat }, req.ip);
+
+        res.json({ success: true, message: 'Student added to roster' });
+    } catch (error) {
+        console.error('Add roster student error:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+});
+
+/**
+ * DELETE /api/rosters/exam/:examId/student/:studentId
+ * Remove student from roster
+ */
+router.delete('/exam/:examId/student/:studentId', requireAdmin, async (req, res) => {
+    try {
+        const { examId, studentId } = req.params;
+        await pool.query(
+            'DELETE FROM exam_rosters WHERE exam_id = ? AND student_id = ?',
+            [examId, studentId]
+        );
+        await logAudit(req.user.userId, 'REMOVE_STUDENT_FROM_ROSTER', 'EXAM_ROSTER', null, null, { examId, studentId }, req.ip);
+        res.json({ success: true, message: 'Student removed from roster' });
+    } catch (error) {
+        console.error('Remove roster student error:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+});
+
+/**
  * POST /api/rosters/import
  * Import students via CSV and attach to an exam roster (Admin)
  * CSV header example: StudentID,FirstName,LastName,Email,Phone,EnrollmentYear,Major

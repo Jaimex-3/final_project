@@ -19,6 +19,7 @@ const violationRoutes = require('./routes/violations');
 const rosterRoutes = require('./routes/rosters');
 const seatingRoutes = require('./routes/seating');
 const reportRoutes = require('./routes/reports');
+const studentRoutes = require('./routes/students');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -42,6 +43,7 @@ app.use('/api/violations', violationRoutes);
 app.use('/api/rosters', rosterRoutes);
 app.use('/api/seating', seatingRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/students', studentRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

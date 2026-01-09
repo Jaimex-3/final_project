@@ -6,6 +6,7 @@ const API_BASE_URL = '/api';
 let currentUser = null;
 let authToken = null;
 let cachedExams = [];
+let liveStream = null;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -31,9 +32,19 @@ function setupEventListeners() {
 
     document.getElementById('importRosterForm').addEventListener('submit', handleRosterImport);
     document.getElementById('addStudentForm').addEventListener('submit', handleAddStudent);
+    document.getElementById('editStudentForm').addEventListener('submit', (e) => e.preventDefault());
+    document.getElementById('saveStudentBtn').addEventListener('click', handleUpdateStudent);
+    document.getElementById('deleteStudentBtn').addEventListener('click', handleDeleteStudent);
     document.getElementById('createSeatingForm').addEventListener('submit', handleCreateSeating);
     document.getElementById('checkInForm').addEventListener('submit', handleCheckIn);
     document.getElementById('violationForm').addEventListener('submit', handleViolation);
+    document.getElementById('addRosterStudentForm').addEventListener('submit', handleAddRosterStudent);
+    document.getElementById('createExamForm').addEventListener('submit', handleCreateExam);
+    document.getElementById('updateExamForm').addEventListener('submit', (e) => e.preventDefault());
+    document.getElementById('saveExamBtn').addEventListener('click', handleUpdateExam);
+    document.getElementById('deleteExamBtn').addEventListener('click', handleDeleteExam);
+    document.getElementById('startCameraBtn').addEventListener('click', startCamera);
+    document.getElementById('captureBtn').addEventListener('click', capturePhoto);
 
     document.querySelectorAll('#reportForm button[data-report]').forEach(btn => {
         btn.addEventListener('click', () => handleReport(btn.dataset.report));
@@ -315,15 +326,38 @@ async function handleAddStudent(e) {
         firstName: document.getElementById('studentFirstName').value,
         lastName: document.getElementById('studentLastName').value,
         email: document.getElementById('studentEmail').value,
-        registrationNumber: document.getElementById('registrationNumber').value
+        phone: document.getElementById('studentPhone').value,
+        enrollmentYear: document.getElementById('studentYear').value,
+        major: document.getElementById('studentMajor').value
     };
 
-    const data = await apiRequest('/rosters/student', {
+    const data = await apiRequest('/students', {
         method: 'POST',
         body: JSON.stringify(payload)
     });
 
     resultDiv.textContent = data.success ? `Student created with ID ${data.studentId}` : (data.message || 'Failed to create student');
+}
+
+async function handleUpdateStudent() {
+    const resultDiv = document.getElementById('editStudentResult');
+    resultDiv.textContent = '';
+    const id = document.getElementById('editStudentId').value;
+    const payload = {
+        email: document.getElementById('editStudentEmail').value,
+        phone: document.getElementById('editStudentPhone').value,
+        major: document.getElementById('editStudentMajor').value
+    };
+    const data = await apiRequest(`/students/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+    resultDiv.textContent = data.success ? 'Student updated' : (data.message || 'Update failed');
+}
+
+async function handleDeleteStudent() {
+    const resultDiv = document.getElementById('editStudentResult');
+    resultDiv.textContent = '';
+    const id = document.getElementById('editStudentId').value;
+    const data = await apiRequest(`/students/${id}`, { method: 'DELETE' });
+    resultDiv.textContent = data.success ? 'Student deleted' : (data.message || 'Delete failed');
 }
 
 // Create seating plan
@@ -347,6 +381,25 @@ async function handleCreateSeating(e) {
     resultDiv.textContent = data.success ? `Seating created with ${payload.rows * payload.columns} seats` : (data.message || 'Failed to create seating plan');
 }
 
+async function handleAddRosterStudent(e) {
+    e.preventDefault();
+    const resultDiv = document.getElementById('addRosterResult');
+    resultDiv.textContent = '';
+
+    const payload = {
+        studentId: document.getElementById('rosterStudentId').value,
+        assignedSeat: document.getElementById('rosterSeat').value
+    };
+
+    const examId = document.getElementById('rosterExamSelect').value;
+    const data = await apiRequest(`/rosters/exam/${examId}/student`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+    });
+
+    resultDiv.textContent = data.success ? 'Student added to roster' : (data.message || 'Failed to add to roster');
+}
+
 // Check-in with photo
 async function handleCheckIn(e) {
     e.preventDefault();
@@ -359,17 +412,22 @@ async function handleCheckIn(e) {
     const notes = document.getElementById('checkInNotes').value;
     const photoInput = document.getElementById('checkInPhoto');
 
-    if (!photoInput.files.length) {
-        resultDiv.textContent = 'Photo is required';
-        return;
-    }
-
     const formData = new FormData();
     formData.append('examId', examId);
     formData.append('studentId', studentId);
     if (actualSeat) formData.append('actualSeat', actualSeat);
     if (notes) formData.append('notes', notes);
-    formData.append('photo', photoInput.files[0]);
+
+    const canvas = document.getElementById('photoCanvas');
+    if (!photoInput.files.length && canvas.dataset.hasCapture === 'true') {
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+        formData.append('photo', blob, 'live_capture.jpg');
+    } else if (photoInput.files.length) {
+        formData.append('photo', photoInput.files[0]);
+    } else {
+        resultDiv.textContent = 'Photo is required (capture or upload)';
+        return;
+    }
 
     try {
         const response = await fetch(`${API_BASE_URL}/checkins`, {
@@ -427,4 +485,72 @@ async function handleReport(type) {
     let endpoint = `/reports/${type}?examId=${examId}`;
     const data = await apiRequest(endpoint);
     output.textContent = data.success ? JSON.stringify(data.data || data, null, 2) : (data.message || 'Failed to load report');
+}
+
+// Exams CRUD
+async function handleCreateExam(e) {
+    e.preventDefault();
+    const resultDiv = document.getElementById('examCreateResult');
+    resultDiv.textContent = '';
+    const payload = {
+        examCode: document.getElementById('examCode').value,
+        examName: document.getElementById('examName').value,
+        examDate: document.getElementById('examDate').value,
+        startTime: document.getElementById('examStart').value,
+        endTime: document.getElementById('examEnd').value,
+        durationMinutes: Number(document.getElementById('examDuration').value),
+        roomId: document.getElementById('examRoomId').value
+    };
+    const data = await apiRequest('/exams', { method: 'POST', body: JSON.stringify(payload) });
+    resultDiv.textContent = data.success ? 'Exam created' : (data.message || 'Failed to create exam');
+    if (data.success) loadExams();
+}
+
+async function handleUpdateExam() {
+    const resultDiv = document.getElementById('examUpdateResult');
+    resultDiv.textContent = '';
+    const id = document.getElementById('editExamId').value;
+    const payload = {
+        examName: document.getElementById('editExamName').value,
+        status: document.getElementById('editExamStatus').value
+    };
+    const data = await apiRequest(`/exams/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+    resultDiv.textContent = data.success ? 'Exam updated' : (data.message || 'Update failed');
+    if (data.success) loadExams();
+}
+
+async function handleDeleteExam() {
+    const resultDiv = document.getElementById('examUpdateResult');
+    resultDiv.textContent = '';
+    const id = document.getElementById('editExamId').value;
+    const data = await apiRequest(`/exams/${id}`, { method: 'DELETE' });
+    resultDiv.textContent = data.success ? 'Exam deleted' : (data.message || 'Delete failed');
+    if (data.success) loadExams();
+}
+
+// Live camera helpers
+async function startCamera() {
+    try {
+        liveStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const video = document.getElementById('liveVideo');
+        video.srcObject = liveStream;
+        video.play();
+    } catch (error) {
+        console.error('Camera error:', error);
+        alert('Unable to access camera');
+    }
+}
+
+function capturePhoto() {
+    const video = document.getElementById('liveVideo');
+    if (!video.srcObject) {
+        alert('Camera not started');
+        return;
+    }
+    const canvas = document.getElementById('photoCanvas');
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.dataset.hasCapture = 'true';
 }
