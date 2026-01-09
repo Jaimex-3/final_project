@@ -1,0 +1,10 @@
+src/backend/app/__pycache__/
+src/backend/app/api/
+src/backend/app/common/
+src/backend/app/ml/
+src/backend/app/models/
+src/backend/app/schemas/
+src/backend/app/services/
+src/backend/migrations/__pycache__/
+src/frontend/package-lock.json
+src/frontend/node_modules/
