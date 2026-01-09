@@ -1,0 +1,49 @@
+.
+├── PROJECT_STRUCTURE.txt
+├── PROJECT_SUMMARY.md
+├── README.md
+├── analysis
+│   └── SRS_Document.md
+├── database
+│   ├── dummy_data.sql
+│   └── schema.sql
+├── diagrams
+│   ├── README.md
+│   ├── activity.mmd
+│   ├── activity.png
+│   ├── erd.mmd
+│   ├── erd.png
+│   ├── sequence_checkin.mmd
+│   ├── sequence_checkin.png
+│   ├── usecase.mmd
+│   └── usecase.png
+├── jira
+│   └── JIRA_PLANNING.md
+├── package-lock.json
+├── package.json
+├── public
+│   ├── css
+│   │   └── style.css
+│   ├── index.html
+│   └── js
+│       └── app.js
+├── src
+│   ├── config
+│   │   └── database.js
+│   ├── middleware
+│   │   └── auth.js
+│   ├── ml_service.py
+│   ├── routes
+│   │   ├── auth.js
+│   │   ├── checkins.js
+│   │   ├── exams.js
+│   │   └── violations.js
+│   ├── server.js
+│   └── utils
+│       └── audit.js
+├── test-docs
+│   └── test_cases.md
+└── tests
+    └── auth.test.js
+
+14 directories, 32 files
