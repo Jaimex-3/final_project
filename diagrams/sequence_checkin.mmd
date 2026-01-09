@@ -1,0 +1,94 @@
+sequenceDiagram
+    participant P as Proctor
+    participant UI as Web Interface
+    participant API as Backend API
+    participant DB as Database
+    participant ML as ML/CV Service
+    participant FS as File Storage
+    
+    Note over P,FS: Student Check-In Workflow with Photo Verification
+    
+    P->>UI: Navigate to Check-In Page
+    UI->>API: GET /api/exams (fetch active exams)
+    API->>DB: SELECT * FROM exams WHERE status='ACTIVE'
+    DB-->>API: Return active exams
+    API-->>UI: Return exam list
+    UI-->>P: Display exam selection
+    
+    P->>UI: Select exam and search student
+    UI->>API: GET /api/checkins/student/:examId/:studentId
+    API->>DB: Check if student already checked in
+    DB-->>API: Return check-in status
+    API-->>UI: Return student info and status
+    
+    alt Student already checked in
+        UI-->>P: Display error: "Student already checked in"
+    else Student not checked in
+        UI-->>P: Display student details and assigned seat
+        
+        P->>UI: Capture student photo
+        UI->>UI: Activate camera/upload interface
+        P->>UI: Take photo
+        UI->>UI: Preview captured photo
+        
+        P->>UI: Confirm and submit check-in
+        UI->>API: POST /api/checkins (with photo file)
+        API->>FS: Save captured photo
+        FS-->>API: Return file path
+        
+        API->>DB: SELECT registered_photo_path FROM students
+        DB-->>API: Return registered photo path
+        
+        API->>ML: Execute ml_service.py with both photos
+        ML->>ML: Load and preprocess images
+        ML->>ML: Calculate SSIM (Structural Similarity)
+        ML->>ML: Generate confidence score
+        ML->>ML: Determine match result (threshold 70%)
+        ML-->>API: Return verification result JSON
+        
+        alt Verification Result: MATCH
+            API->>DB: INSERT check_in (verification_result='MATCH')
+            DB-->>API: Confirm insertion
+            API->>DB: UPDATE seats SET is_occupied=TRUE
+            DB-->>API: Confirm update
+            API-->>UI: Return success with confidence score
+            UI-->>P: Display success: "Check-in completed"
+            
+        else Verification Result: NO_MATCH
+            API->>DB: INSERT check_in (verification_result='NO_MATCH')
+            DB-->>API: Confirm insertion
+            API->>DB: INSERT violation (category='IDENTITY_MISMATCH')
+            DB-->>API: Confirm violation recorded
+            API-->>UI: Return warning with low confidence
+            UI-->>P: Display warning: "Verification failed"
+            
+            P->>UI: Review verification result
+            alt Proctor decides to override
+                P->>UI: Click "Override" and add notes
+                UI->>API: PATCH /api/checkins/:id/override
+                API->>DB: UPDATE check_in SET verification_result='OVERRIDE'
+                DB-->>API: Confirm update
+                API->>DB: INSERT audit_log (action='OVERRIDE_VERIFICATION')
+                DB-->>API: Confirm audit log
+                API-->>UI: Return success
+                UI-->>P: Display: "Override successful"
+            else Proctor rejects check-in
+                UI-->>P: Display: "Check-in rejected"
+            end
+        end
+        
+        alt Seat Mismatch Detected
+            API->>DB: Compare assigned_seat vs actual_seat
+            Note over API,DB: If seats don't match
+            API->>DB: INSERT violation (category='SEAT_MISMATCH')
+            DB-->>API: Confirm violation recorded
+        end
+        
+        API->>DB: INSERT audit_log (action='CHECK_IN_STUDENT')
+        DB-->>API: Confirm audit log
+        
+        API-->>UI: Return complete check-in result
+        UI-->>P: Display check-in summary
+    end
+    
+    Note over P,FS: Check-In Workflow Complete

@@ -1,0 +1,61 @@
+graph TD
+    Start([Start: Exam Day]) --> Login[Proctor Logs In]
+    Login --> SelectExam[Select Active Exam]
+    SelectExam --> ViewSeating[View Seating Plan]
+    ViewSeating --> WaitStudent{Wait for Student}
+    
+    WaitStudent -->|Student Arrives| SearchStudent[Search Student by ID/Name]
+    SearchStudent --> CheckRoster{Student in Roster?}
+    
+    CheckRoster -->|No| NotifyNotInRoster[Notify: Not in Roster]
+    NotifyNotInRoster --> WaitStudent
+    
+    CheckRoster -->|Yes| CheckAlreadyIn{Already Checked In?}
+    CheckAlreadyIn -->|Yes| NotifyAlreadyIn[Notify: Already Checked In]
+    NotifyAlreadyIn --> WaitStudent
+    
+    CheckAlreadyIn -->|No| DisplayInfo[Display Student Info & Assigned Seat]
+    DisplayInfo --> CapturePhoto[Capture Student Photo]
+    CapturePhoto --> ProcessPhoto[Process Photo with ML/CV]
+    
+    ProcessPhoto --> VerifyIdentity{Verification Result}
+    
+    VerifyIdentity -->|MATCH >= 70%| CheckSeat[Verify Seat Assignment]
+    VerifyIdentity -->|NO_MATCH < 70%| LowConfidence[Display Low Confidence Warning]
+    
+    LowConfidence --> ProctorDecision{Proctor Decision}
+    ProctorDecision -->|Override| ManualApproval[Manual Override with Notes]
+    ManualApproval --> CheckSeat
+    ProctorDecision -->|Reject| RecordRejection[Record Identity Mismatch Violation]
+    RecordRejection --> WaitStudent
+    
+    CheckSeat --> CompareSeat{Actual Seat = Assigned Seat?}
+    CompareSeat -->|No| RecordSeatViolation[Record Seat Mismatch Violation]
+    CompareSeat -->|Yes| NoSeatViolation[No Seat Violation]
+    
+    RecordSeatViolation --> CompleteCheckIn[Complete Check-In]
+    NoSeatViolation --> CompleteCheckIn
+    
+    CompleteCheckIn --> UpdateSeating[Update Seating Plan - Mark Seat Occupied]
+    UpdateSeating --> LogAudit[Log Audit Entry]
+    LogAudit --> DisplaySuccess[Display Check-In Success]
+    
+    DisplaySuccess --> MoreStudents{More Students?}
+    MoreStudents -->|Yes| WaitStudent
+    MoreStudents -->|No| ExamEnd{Exam Time Ended?}
+    
+    ExamEnd -->|No| WaitStudent
+    ExamEnd -->|Yes| GenerateReports[Generate Check-In Reports]
+    GenerateReports --> ReviewViolations[Review Violations]
+    ReviewViolations --> UpdateExamStatus[Update Exam Status to COMPLETED]
+    UpdateExamStatus --> Logout[Proctor Logs Out]
+    Logout --> End([End])
+    
+    style Start fill:#90EE90,stroke:#333,stroke-width:2px
+    style End fill:#FFB6C1,stroke:#333,stroke-width:2px
+    style VerifyIdentity fill:#FFD700,stroke:#333,stroke-width:2px
+    style ProctorDecision fill:#FFD700,stroke:#333,stroke-width:2px
+    style CompareSeat fill:#FFD700,stroke:#333,stroke-width:2px
+    style RecordSeatViolation fill:#FF6B6B,stroke:#333,stroke-width:2px
+    style RecordRejection fill:#FF6B6B,stroke:#333,stroke-width:2px
+    style CompleteCheckIn fill:#4ECDC4,stroke:#333,stroke-width:2px
