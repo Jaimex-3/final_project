@@ -17,6 +17,9 @@ class Checkin(BaseModel):
     checked_in_at = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), nullable=False)
     notes = db.Column(db.Text)
 
+    exam = db.relationship("Exam", lazy="joined")
+    student = db.relationship("Student", lazy="joined")
+
     __table_args__ = (
         db.UniqueConstraint("exam_id", "student_id", name="uq_checkins_exam_student"),
     )
@@ -35,4 +38,12 @@ class Checkin(BaseModel):
             "photo_path": self.photo_path,
             "checked_in_at": self.checked_in_at.isoformat() if self.checked_in_at else None,
             "notes": self.notes,
+            "exam": {"id": self.exam.id, "title": self.exam.title, "code": self.exam.code} if self.exam else None,
+            "student": {
+                "id": self.student.id,
+                "full_name": self.student.full_name,
+                "student_number": self.student.student_number,
+            }
+            if self.student
+            else None,
         }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchReportCheckins, fetchReportViolations, fetchSummary } from "../api/reports";
+import { formatDateTimeDisplay } from "../utils/datetime";
 
 export default function Reports() {
   const [summary, setSummary] = useState<any>(null);
@@ -44,18 +45,28 @@ export default function Reports() {
                 <th className="px-3 py-2">Face</th>
                 <th className="px-3 py-2">Seat</th>
                 <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2">Time</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {checkins.map((c) => (
                 <tr key={c.id} className="hover:bg-slate-50">
-                  <td className="px-3 py-2">{c.exam_id}</td>
-                  <td className="px-3 py-2">{c.student_id}</td>
+                  <td className="px-3 py-2">
+                    {c.exam?.title ? `${c.exam.title} (${c.exam.code})` : c.exam_id}
+                  </td>
+                  <td className="px-3 py-2">
+                    {c.student?.full_name
+                      ? `${c.student.full_name} (${c.student.student_number})`
+                      : c.student_id}
+                  </td>
                   <td className="px-3 py-2">
                     {c.is_face_match ? "Match" : "Mismatch"}
                   </td>
                   <td className="px-3 py-2">{c.is_seat_ok ? "OK" : "Wrong"}</td>
                   <td className="px-3 py-2">{c.decision_status}</td>
+                  <td className="px-3 py-2">
+                    {c.checked_in_at ? formatDateTimeDisplay(c.checked_in_at) : "-"}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -77,8 +88,14 @@ export default function Reports() {
             <tbody className="divide-y divide-slate-100">
               {violations.map((v) => (
                 <tr key={v.id} className="hover:bg-slate-50">
-                  <td className="px-3 py-2">{v.exam_id}</td>
-                  <td className="px-3 py-2">{v.student_id}</td>
+                  <td className="px-3 py-2">
+                    {v.exam?.title ? `${v.exam.title} (${v.exam.code})` : v.exam_id}
+                  </td>
+                  <td className="px-3 py-2">
+                    {v.student?.full_name
+                      ? `${v.student.full_name} (${v.student.student_number})`
+                      : v.student_id}
+                  </td>
                   <td className="px-3 py-2">{v.reason}</td>
                 </tr>
               ))}

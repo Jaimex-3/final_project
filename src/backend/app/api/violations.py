@@ -76,3 +76,77 @@ def list_violations():
     exam_id = request.args.get("exam_id", type=int)
     violations = violation_service.list_violations_filtered(exam_id=exam_id)
     return jsonify({"items": [v.to_dict() for v in violations]})
+
+
+@proctor_violations_bp.route("/violations/<int:violation_id>", methods=["PUT"])
+@require_roles("proctor", "admin")
+def update_violation(violation_id: int):
+    violation = violation_service.get_violation(violation_id)
+    if not violation:
+        return jsonify({"message": "Violation not found."}), HTTPStatus.NOT_FOUND
+
+    data = request.form
+    evidence = request.files.get("evidence") or request.files.get("evidence_image")
+
+    updates = {}
+    errors = {}
+
+    if "reason" in data:
+        reason = (data.get("reason") or "").strip()
+        if not reason:
+            errors["reason"] = "Reason cannot be empty."
+        else:
+            updates["reason"] = reason
+
+    if "notes" in data:
+        notes_val = (data.get("notes") or "").strip()
+        updates["notes"] = notes_val or None
+        updates["notes_provided"] = True
+
+    checkin_obj = None
+    if "checkin_id" in data:
+        checkin_raw = data.get("checkin_id")
+        if checkin_raw:
+            try:
+                checkin_obj = Checkin.query.get(int(checkin_raw))
+            except (TypeError, ValueError):
+                errors["checkin_id"] = "checkin_id must be an integer."
+            else:
+                if not checkin_obj:
+                    errors["checkin_id"] = "Checkin not found."
+        updates["set_checkin"] = True
+        updates["checkin"] = checkin_obj
+
+    if errors:
+        return jsonify({"errors": errors}), HTTPStatus.BAD_REQUEST
+
+    if not updates and not evidence:
+        return jsonify({"message": "No fields to update."}), HTTPStatus.BAD_REQUEST
+
+    upload_folder = Path(current_app.config["UPLOAD_FOLDER"]).resolve() / "evidence"
+    try:
+        violation = violation_service.update_violation(
+            violation,
+            reason=updates.get("reason"),
+            notes=updates.get("notes"),
+            notes_provided=updates.get("notes_provided", False),
+            checkin=updates.get("checkin"),
+            set_checkin=updates.get("set_checkin", False),
+            evidence_image=evidence,
+            upload_folder=upload_folder,
+        )
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"message": "Constraint error updating violation."}), HTTPStatus.BAD_REQUEST
+
+    return jsonify(violation.to_dict())
+
+
+@proctor_violations_bp.route("/violations/<int:violation_id>", methods=["DELETE"])
+@require_roles("proctor", "admin")
+def delete_violation(violation_id: int):
+    violation = violation_service.get_violation(violation_id)
+    if not violation:
+        return jsonify({"message": "Violation not found."}), HTTPStatus.NOT_FOUND
+    violation_service.delete_violation(violation)
+    return "", HTTPStatus.NO_CONTENT

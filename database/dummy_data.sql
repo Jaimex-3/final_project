@@ -36,11 +36,15 @@ INSERT INTO students (id, student_number, full_name, email) VALUES
 
 -- Rooms
 INSERT INTO rooms (id, name, capacity, location) VALUES
-    (1, 'Room A', 40, 'Building 1');
+    (1, 'Room A', 40, 'Building 1'),
+    (2, 'Room B', 30, 'Building 2'),
+    (3, 'Room C', 50, 'Building 3');
 
 -- Exams
 INSERT INTO exams (id, code, title, description, room_id, start_at, end_at, created_by) VALUES
-    (1, 'EXAM101', 'Calculus Midterm', 'Spring session midterm', 1, '2024-06-01 09:00:00', '2024-06-01 11:00:00', 1);
+    (1, 'EXAM101', 'Calculus Midterm', 'Spring session midterm', 1, '2024-06-01 09:00:00', '2024-06-01 11:00:00', 1),
+    (2, 'EXAM202', 'Physics Final', 'Fall session final', 1, '2024-12-15 13:00:00', '2024-12-15 15:30:00', 1),
+    (3, 'EXAM303', 'Chemistry Quiz', 'Short quiz on chapters 5-6', 2, '2024-07-20 10:00:00', '2024-07-20 11:00:00', 1);
 
 -- Seating plan
 INSERT INTO seating_plans (id, exam_id, room_id, name, created_by) VALUES
@@ -58,7 +62,10 @@ INSERT INTO exam_students (exam_id, student_id, status) VALUES
     (1, 1, 'enrolled'), (1, 2, 'enrolled'), (1, 3, 'enrolled'), (1, 4, 'enrolled'), (1, 5, 'enrolled'),
     (1, 6, 'enrolled'), (1, 7, 'enrolled'), (1, 8, 'enrolled'), (1, 9, 'enrolled'), (1, 10, 'enrolled'),
     (1, 11, 'enrolled'), (1, 12, 'enrolled'), (1, 13, 'enrolled'), (1, 14, 'enrolled'), (1, 15, 'enrolled'),
-    (1, 16, 'enrolled'), (1, 17, 'enrolled'), (1, 18, 'enrolled'), (1, 19, 'enrolled'), (1, 20, 'enrolled');
+    (1, 16, 'enrolled'), (1, 17, 'enrolled'), (1, 18, 'enrolled'), (1, 19, 'enrolled'), (1, 20, 'enrolled'),
+    (2, 1, 'enrolled'), (2, 2, 'enrolled'), (2, 3, 'enrolled'), (2, 4, 'enrolled'), (2, 5, 'enrolled'),
+    (2, 6, 'enrolled'), (2, 7, 'enrolled'), (2, 8, 'enrolled'),
+    (3, 9, 'enrolled'), (3, 10, 'enrolled'), (3, 11, 'enrolled'), (3, 12, 'enrolled'), (3, 13, 'enrolled'), (3, 14, 'enrolled');
 
 -- Seat assignments (one seat per student, single plan)
 INSERT INTO seat_assignments (id, exam_id, seating_plan_id, student_id, seat_code, assigned_by) VALUES
@@ -82,9 +89,17 @@ INSERT INTO checkins (id, exam_id, student_id, seating_plan_id, seat_assignment_
     (3, 1, 3, 1, 3, 'A3', 1, 0, 'pending', '2024-06-01 08:45:00', 'Seat check pending'),
     (4, 1, 4, 1, 4, 'A4', 0, 1, 'pending', '2024-06-01 08:46:00', 'Face mismatch, escalate'),
     (5, 1, 5, 1, 5, 'A5', 1, 1, 'approved', '2024-06-01 08:47:00', 'Approved'),
-    (6, 1, 6, 1, 6, 'B1', 1, 0, 'denied', '2024-06-01 08:48:00', 'Wrong seat');
+    (6, 1, 6, 1, 6, 'B1', 1, 0, 'denied', '2024-06-01 08:48:00', 'Wrong seat'),
+    (7, 2, 1, NULL, NULL, 'B1', 1, 1, 'approved', '2024-12-15 12:40:00', 'On time'),
+    (8, 2, 3, NULL, NULL, 'B2', 0, 1, 'pending', '2024-12-15 12:50:00', 'ID check needed'),
+    (9, 3, 9, NULL, NULL, 'C1', 1, 0, 'pending', '2024-07-20 09:45:00', 'Seat mismatch'),
+    (10, 3, 11, NULL, NULL, 'C2', 0, 1, 'pending', '2024-07-20 09:50:00', 'Face mismatch');
 
 -- Violations
 INSERT INTO violations (exam_id, student_id, checkin_id, reason, notes, evidence_image_path) VALUES
     (1, 4, 4, 'Face mismatch', 'Manual verification required', 'uploads/evidence/violation_face_4.jpg'),
-    (1, 6, 6, 'Seating violation', 'Student sat in B2 instead of B1', 'uploads/evidence/violation_seat_6.jpg');
+    (1, 6, 6, 'Seating violation', 'Student sat in B2 instead of B1', 'uploads/evidence/violation_seat_6.jpg'),
+    (2, 3, 8, 'ID verification', 'Manual review required', NULL),
+    (2, 5, NULL, 'Device use suspected', 'Proctor observed phone on desk', NULL),
+    (3, 9, 9, 'Seat mismatch', 'Student seated in wrong row', NULL),
+    (3, 11, 10, 'Face mismatch', 'Possible impersonation; needs review', NULL);

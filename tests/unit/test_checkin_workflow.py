@@ -16,6 +16,9 @@ def make_file(tmp_path, name="photo.jpg"):
 
 
 def test_duplicate_checkin_prevented(app, db_session, exam, student, tmp_path):
+    db_session.query(Checkin).delete()
+    db_session.commit()
+
     ml = FakeMLService(should_match=True)
     checkin_service.process_checkin(
         exam=exam,
@@ -41,7 +44,13 @@ def test_duplicate_checkin_prevented(app, db_session, exam, student, tmp_path):
 
 
 def test_ml_wrapper_match_and_seat_ok(app, db_session, exam, student, tmp_path):
-    plan = SeatingPlan(exam_id=exam.id, name="Plan")
+    db_session.query(Checkin).delete()
+    db_session.query(SeatAssignment).delete()
+    db_session.query(Seat).delete()
+    db_session.query(SeatingPlan).delete()
+    db_session.commit()
+
+    plan = SeatingPlan(exam_id=exam.id, room_id=exam.room_id, name="Plan-OK")
     db_session.add(plan)
     db_session.flush()
     seat = Seat(seating_plan_id=plan.id, seat_code="A1", row_number=1, col_number=1)
@@ -71,7 +80,13 @@ def test_ml_wrapper_match_and_seat_ok(app, db_session, exam, student, tmp_path):
 
 
 def test_ml_wrapper_no_match_or_wrong_seat(app, db_session, exam, student, tmp_path):
-    plan = SeatingPlan(exam_id=exam.id, name="Plan")
+    db_session.query(Checkin).delete()
+    db_session.query(SeatAssignment).delete()
+    db_session.query(Seat).delete()
+    db_session.query(SeatingPlan).delete()
+    db_session.commit()
+
+    plan = SeatingPlan(exam_id=exam.id, room_id=exam.room_id, name="Plan-Bad")
     db_session.add(plan)
     db_session.flush()
     seat = Seat(seating_plan_id=plan.id, seat_code="A1", row_number=1, col_number=1)

@@ -12,6 +12,9 @@ class Violation(BaseModel):
     notes = db.Column(db.Text)
     evidence_image_path = db.Column(db.String(255))
 
+    exam = db.relationship("Exam", lazy="joined")
+    student = db.relationship("Student", lazy="joined")
+
     def to_dict(self) -> dict:
         return {
             "id": self.id,
@@ -21,5 +24,13 @@ class Violation(BaseModel):
             "reason": self.reason,
             "notes": self.notes,
             "evidence_image_path": self.evidence_image_path,
+            "exam": {"id": self.exam.id, "title": self.exam.title, "code": self.exam.code} if self.exam else None,
+            "student": {
+                "id": self.student.id,
+                "full_name": self.student.full_name,
+                "student_number": self.student.student_number,
+            }
+            if self.student
+            else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
