@@ -1,17 +1,17 @@
 import csv
 import io
+import os
+import uuid
 from typing import List, Optional, Tuple
 
+from flask import current_app
+from werkzeug.utils import secure_filename
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from ..extensions import db
-from ..models import Exam, ExamStudent, Student
-
-
-def student_to_dict(student: Student) -> dict:
-    return student.to_dict()
+from ..models import Exam, ExamStudent, Student, StudentReferencePhoto
 
 
 def list_students(search: Optional[str] = None) -> List[Student]:
@@ -38,6 +38,23 @@ def create_student(validated: dict) -> Student:
     return student
 
 
+def update_student(student: Student, validated: dict) -> Student:
+    student.student_number = validated["student_number"]
+    student.full_name = validated["full_name"]
+    student.email = validated.get("email")
+    _commit()
+    return student
+
+
+def delete_student(student: Student) -> None:
+    db.session.delete(student)
+    _commit()
+
+
+def get_student_by_id(student_id: int) -> Optional[Student]:
+    return Student.query.get(student_id)
+
+
 def import_roster_from_csv(exam: Exam, file_storage) -> Tuple[List[ExamStudent], List[dict]]:
     """
     Returns (exam_students, errors)
@@ -54,7 +71,7 @@ def import_roster_from_csv(exam: Exam, file_storage) -> Tuple[List[ExamStudent],
 
     seen_numbers = set()
     rows = []
-    for idx, row in enumerate(reader, start=2):  # start=2 to account for header row being 1
+    for idx, row in enumerate(reader, start=2):
         normalized = {k.strip().lower(): (v or "").strip() for k, v in row.items()}
         student_no = normalized.get("student_no", "")
         full_name = normalized.get("full_name", "")
@@ -73,24 +90,6 @@ def import_roster_from_csv(exam: Exam, file_storage) -> Tuple[List[ExamStudent],
     if errors:
         return [], errors
 
-    # Check existing roster duplicates
-    roster_dups = (
-        db.session.query(Student.student_number)
-        .join(ExamStudent, ExamStudent.student_id == Student.id)
-        .filter(ExamStudent.exam_id == exam.id, Student.student_number.in_(seen_numbers))
-        .all()
-    )
-    if roster_dups:
-        for (student_number,) in roster_dups:
-            errors.append(
-                {
-                    "field": "student_no",
-                    "message": f"Student {student_number} already in roster",
-                }
-            )
-        return [], errors
-
-    # Fetch existing students to avoid duplicate creation
     existing_students = Student.query.filter(Student.student_number.in_(seen_numbers)).all()
     existing_map = {s.student_number: s for s in existing_students}
 
@@ -100,7 +99,7 @@ def import_roster_from_csv(exam: Exam, file_storage) -> Tuple[List[ExamStudent],
         if not student:
             student = Student(student_number=row["student_no"], full_name=row["full_name"])
             db.session.add(student)
-            db.session.flush()  # get id
+            db.session.flush()
             existing_map[row["student_no"]] = student
 
         exam_student = ExamStudent(exam_id=exam.id, student_id=student.id, status="enrolled")
@@ -109,6 +108,38 @@ def import_roster_from_csv(exam: Exam, file_storage) -> Tuple[List[ExamStudent],
 
     _commit()
     return created_records, []
+
+
+def add_student_photo(student: Student, file_storage) -> str:
+    filename = secure_filename(f"student_{student.id}_{file_storage.filename}")
+    
+    if os.path.exists(os.path.join(current_app.config["UPLOAD_FOLDER"], "reference", filename)):
+        filename = f"{uuid.uuid4().hex[:8]}_{filename}"
+
+    relative_path = os.path.join("uploads", "reference", filename)
+    absolute_path = os.path.join(current_app.config["UPLOAD_FOLDER"], "reference", filename)
+    
+    os.makedirs(os.path.dirname(absolute_path), exist_ok=True)
+    file_storage.save(absolute_path)
+    
+    ref_photo = StudentReferencePhoto(student_id=student.id, image_path=relative_path)
+    db.session.add(ref_photo)
+    _commit()
+    return relative_path
+
+
+def add_student_to_exam(exam_id: int, student_id: int) -> ExamStudent:
+    exam_student = ExamStudent(exam_id=exam_id, student_id=student_id, status="enrolled")
+    db.session.add(exam_student)
+    _commit()
+    return exam_student
+
+
+def remove_student_from_exam(exam_id: int, student_id: int) -> None:
+    exam_student = ExamStudent.query.filter_by(exam_id=exam_id, student_id=student_id).first()
+    if exam_student:
+        db.session.delete(exam_student)
+        _commit()
 
 
 def list_exam_roster(exam_id: int) -> List[ExamStudent]:

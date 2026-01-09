@@ -35,8 +35,11 @@ def get_exam(exam_id: int) -> Optional[Exam]:
     return Exam.query.get(exam_id)
 
 
+import uuid
+
 def create_exam(validated: dict) -> Exam:
     exam = Exam(
+        code=validated.get("code") or str(uuid.uuid4())[:8].upper(),
         title=validated["title"],
         start_at=validated["start_at"],
         end_at=validated["end_at"],

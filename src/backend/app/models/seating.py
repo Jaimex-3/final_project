@@ -6,6 +6,7 @@ class SeatingPlan(BaseModel):
     __tablename__ = "seating_plans"
 
     exam_id = db.Column(db.Integer, db.ForeignKey("exams.id", ondelete="CASCADE"), nullable=False, unique=True)
+    room_id = db.Column(db.Integer, db.ForeignKey("rooms.id", ondelete="RESTRICT"), nullable=False)
     name = db.Column(db.String(255), nullable=False, default="Seating Plan")
 
     seats = db.relationship("Seat", back_populates="seating_plan", cascade="all, delete-orphan", lazy="dynamic")

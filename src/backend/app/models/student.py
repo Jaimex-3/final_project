@@ -10,6 +10,7 @@ class Student(BaseModel):
     email = db.Column(db.String(255), unique=True)
 
     exam_students = db.relationship("ExamStudent", back_populates="student", lazy="dynamic", cascade="all, delete-orphan")
+    photos = db.relationship("StudentReferencePhoto", back_populates="student", lazy="dynamic", cascade="all, delete-orphan")
 
     def to_dict(self) -> dict:
         return {
@@ -17,6 +18,7 @@ class Student(BaseModel):
             "student_number": self.student_number,
             "full_name": self.full_name,
             "email": self.email,
+            "photos": [p.to_dict() for p in self.photos.all()],
         }
 
 
@@ -36,4 +38,26 @@ class ExamStudent(db.Model):
             "student_id": self.student_id,
             "status": self.status,
             "student": self.student.to_dict() if self.student else None,
+        }
+
+
+class StudentReferencePhoto(BaseModel):
+    __tablename__ = "student_reference_photos"
+
+    student_id = db.Column(db.Integer, db.ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    image_path = db.Column(db.String(255), nullable=False)
+    embedding_hash = db.Column(db.String(255))
+    meta_data = db.Column(db.JSON)
+
+    __table_args__ = (
+        db.UniqueConstraint("student_id", "image_path", name="uq_student_image_path"),
+    )
+
+    student = db.relationship("Student", back_populates="photos")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "image_path": self.image_path,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }

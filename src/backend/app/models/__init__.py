@@ -4,7 +4,7 @@ from .room import Room
 from .checkin import Checkin
 from .violation import Violation
 from .seating import Seat, SeatAssignment, SeatingPlan
-from .student import ExamStudent, Student
+from .student import ExamStudent, Student, StudentReferencePhoto
 from .user import Role, User
 
 __all__ = [
@@ -16,6 +16,7 @@ __all__ = [
     "Checkin",
     "Student",
     "ExamStudent",
+    "StudentReferencePhoto",
     "SeatingPlan",
     "Seat",
     "SeatAssignment",

@@ -4,6 +4,9 @@ import CheckIn from "../pages/CheckIn";
 import Dashboard from "../pages/Dashboard";
 import ExamDetail from "../pages/ExamDetail";
 import Exams from "../pages/Exams";
+import Students from "../pages/Students";
+import StudentDetail from "../pages/StudentDetail";
+import Rooms from "../pages/Rooms";
 import Login from "../pages/Login";
 import Reports from "../pages/Reports";
 import SeatingPlanBuilder from "../pages/SeatingPlanBuilder";
@@ -50,6 +53,30 @@ export default function Router() {
           element={
             <ProtectedRoute roles={["admin", "proctor"]}>
               <ExamDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="students"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <Students />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="students/:id"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <StudentDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="rooms"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <Rooms />
             </ProtectedRoute>
           }
         />

@@ -7,7 +7,9 @@ import {
   fetchSeatingPlan,
   Seat,
 } from "../api/seating";
+import { fetchExams, Exam } from "../api/exams";
 import SeatingGrid from "../components/seating/SeatingGrid";
+import { formatDateTimeDisplay } from "../utils/datetime";
 
 type RosterEntry = {
   student_id: number;
@@ -16,6 +18,7 @@ type RosterEntry = {
 
 export default function SeatingPlanBuilder() {
   const [examId, setExamId] = useState("");
+  const [exams, setExams] = useState<Exam[]>([]);
   const [mode, setMode] = useState<"grid" | "manual">("grid");
   const [rows, setRows] = useState(4);
   const [cols, setCols] = useState(5);
@@ -37,6 +40,10 @@ export default function SeatingPlanBuilder() {
       ),
     [roster, search]
   );
+
+  useEffect(() => {
+    fetchExams().then(setExams).catch(console.error);
+  }, []);
 
   useEffect(() => {
     if (!examId) return;
@@ -103,7 +110,9 @@ export default function SeatingPlanBuilder() {
       setSeats(plan.seats || []);
       setMessage("Seating plan saved.");
     } catch (err: any) {
-      setMessage(err?.response?.data?.message || "Failed to save plan.");
+      const msg = err?.response?.data?.message || "Failed to save plan.";
+      const errs = err?.response?.data?.errors;
+      setMessage(errs ? `${msg} ${JSON.stringify(errs)}` : msg);
     }
   };
 
@@ -149,19 +158,22 @@ export default function SeatingPlanBuilder() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-slate-800">Seating Plan</h2>
-        <div className="flex items-center gap-3">
-          <input
-            className="border px-3 py-2 rounded text-sm"
-            placeholder="Exam ID"
+        <div className="flex items-center gap-3 w-1/3">
+          <select
+            className="border px-3 py-2 rounded text-sm w-full"
             value={examId}
             onChange={(e) => setExamId(e.target.value)}
-          />
-          <button
-            onClick={loadPlanAndAssignments}
-            className="px-3 py-2 text-sm bg-slate-800 text-white rounded"
           >
-            Load
-          </button>
+            <option value="">Select Exam</option>
+            {exams.map((exam) => {
+              const startLabel = formatDateTimeDisplay(exam.start_at) || "No schedule";
+              return (
+                <option key={exam.id} value={exam.id}>
+                  {exam.title} ({startLabel})
+                </option>
+              );
+            })}
+          </select>
         </div>
       </div>
 

@@ -33,7 +33,7 @@ def login():
         "role": user.role.name if user.role else None,
         "email": user.email,
     }
-    access_token = create_access_token(identity=user.id, additional_claims=claims)
+    access_token = create_access_token(identity=str(user.id), additional_claims=claims)
 
     return jsonify({"access_token": access_token, "user": user.to_dict()}), HTTPStatus.OK
 

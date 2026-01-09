@@ -80,6 +80,37 @@ def admin_get_roster(exam_id: int):
     return jsonify({"items": [es.to_dict() for es in roster]})
 
 
+@admin_exams_bp.route("/<int:exam_id>/roster", methods=["POST"])
+@require_roles("admin")
+def admin_add_student_to_roster(exam_id: int):
+    exam = exam_service.get_exam(exam_id)
+    if not exam:
+        return jsonify({"message": "Exam not found."}), HTTPStatus.NOT_FOUND
+
+    payload = request.get_json(silent=True) or {}
+    student_id = payload.get("student_id")
+    if not student_id:
+        return jsonify({"message": "student_id is required."}), HTTPStatus.BAD_REQUEST
+
+    try:
+        student_service.add_student_to_exam(exam.id, student_id)
+    except IntegrityError:
+        return jsonify({"message": "Student already in roster."}), HTTPStatus.BAD_REQUEST
+
+    return jsonify({"message": "Student added to roster."}), HTTPStatus.CREATED
+
+
+@admin_exams_bp.route("/<int:exam_id>/roster/<int:student_id>", methods=["DELETE"])
+@require_roles("admin")
+def admin_remove_student_from_roster(exam_id: int, student_id: int):
+    exam = exam_service.get_exam(exam_id)
+    if not exam:
+        return jsonify({"message": "Exam not found."}), HTTPStatus.NOT_FOUND
+
+    student_service.remove_student_from_exam(exam.id, student_id)
+    return "", HTTPStatus.NO_CONTENT
+
+
 @admin_exams_bp.route("/<int:exam_id>/roster/import-csv", methods=["POST"])
 @require_roles("admin")
 def admin_import_roster(exam_id: int):

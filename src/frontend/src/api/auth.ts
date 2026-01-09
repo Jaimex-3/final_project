@@ -5,9 +5,7 @@ export async function login(email: string, password: string) {
   return data;
 }
 
-export async function getMe(token: string) {
-  const { data } = await client.get("/api/auth/me", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+export async function getMe() {
+  const { data } = await client.get("/api/auth/me");
   return data;
 }

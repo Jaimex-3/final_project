@@ -4,6 +4,8 @@ import { useAuth } from "../../hooks/useAuth";
 const navItems = [
   { to: "/", label: "Dashboard", roles: ["admin", "proctor"] },
   { to: "/exams", label: "Exams", roles: ["admin", "proctor"] },
+  { to: "/students", label: "Students", roles: ["admin"] },
+  { to: "/rooms", label: "Rooms", roles: ["admin"] },
   { to: "/seating", label: "Seating Plan", roles: ["admin"] },
   { to: "/checkin", label: "Check-in", roles: ["admin", "proctor"] },
   { to: "/violations", label: "Violations", roles: ["admin", "proctor"] },

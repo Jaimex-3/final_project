@@ -18,7 +18,14 @@ def create_seating_plan(exam: Exam, validated: dict) -> SeatingPlan:
     if SeatingPlan.query.filter_by(exam_id=exam.id).first():
         raise ValueError("Seating plan already exists for this exam.")
 
-    plan = SeatingPlan(exam_id=exam.id, name=validated.get("name") or "Seating Plan")
+    if not exam.room_id:
+        raise ValueError("Exam must have a room assigned before creating a seating plan.")
+
+    plan = SeatingPlan(
+        exam_id=exam.id,
+        room_id=exam.room_id,
+        name=validated.get("name") or "Seating Plan"
+    )
     db.session.add(plan)
     db.session.flush()  # get plan id
 
@@ -41,8 +48,7 @@ def create_seating_plan(exam: Exam, validated: dict) -> SeatingPlan:
 
 def get_seating_plan(exam_id: int) -> Optional[SeatingPlan]:
     return (
-        SeatingPlan.query.options(joinedload(SeatingPlan.seats))
-        .filter(SeatingPlan.exam_id == exam_id)
+        SeatingPlan.query.filter(SeatingPlan.exam_id == exam_id)
         .first()
     )
 
@@ -52,7 +58,7 @@ def seating_plan_to_dict(plan: SeatingPlan) -> dict:
         "id": plan.id,
         "exam_id": plan.exam_id,
         "name": plan.name,
-        "seats": [seat.to_dict() for seat in plan.seats.order_by(Seat.row_number.asc().nullslast(), Seat.col_number.asc().nullslast(), Seat.seat_code.asc()).all()],
+        "seats": [seat.to_dict() for seat in plan.seats.order_by(Seat.row_number.asc(), Seat.col_number.asc(), Seat.seat_code.asc()).all()],
         "total_seats": plan.seats.count(),
     }
 
@@ -105,12 +111,14 @@ def assign_seats(exam: Exam, plan: SeatingPlan, assignments: List[Dict[str, Any]
         assignment = student_to_assignment.get(student_id)
         if assignment:
             assignment.seat_code = seat_code_upper
+            assignment.seating_plan_id = plan.id  # Ensure updated plan
         else:
             assignment = SeatAssignment(
                 exam_id=exam.id,
                 seating_plan_id=plan.id,
                 student_id=student_id,
                 seat_code=seat_code_upper,
+                assigned_by=1  # TODO: get current user id from context if possible or pass it
             )
             db.session.add(assignment)
         saved.append(assignment)
@@ -120,12 +128,7 @@ def assign_seats(exam: Exam, plan: SeatingPlan, assignments: List[Dict[str, Any]
 
 
 def list_seat_assignments(exam_id: int) -> List[SeatAssignment]:
-    return (
-        SeatAssignment.query.options(joinedload(SeatAssignment.student))
-        .filter(SeatAssignment.exam_id == exam_id)
-        .order_by(SeatAssignment.student_id.asc())
-        .all()
-    )
+    return SeatAssignment.query.filter_by(exam_id=exam_id).all()
 
 
 def _commit() -> None:

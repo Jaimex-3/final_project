@@ -21,7 +21,9 @@ DROP TABLE IF EXISTS roles;
 CREATE TABLE roles (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(32) NOT NULL UNIQUE,
-    description VARCHAR(255)
+    description VARCHAR(255),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE users (
@@ -41,14 +43,17 @@ CREATE TABLE students (
     student_number VARCHAR(50) NOT NULL UNIQUE,
     full_name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE rooms (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
     capacity INT NOT NULL,
-    location VARCHAR(255)
+    location VARCHAR(255),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE exams (
@@ -73,6 +78,7 @@ CREATE TABLE seating_plans (
     name VARCHAR(255) NOT NULL,
     created_by INT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_seating_plan_exam_name (exam_id, name),
     KEY idx_seating_plan_id_exam (id, exam_id),
     FOREIGN KEY (exam_id) REFERENCES exams(id) ON DELETE CASCADE,
@@ -84,10 +90,12 @@ CREATE TABLE seats (
     id INT AUTO_INCREMENT PRIMARY KEY,
     seating_plan_id INT NOT NULL,
     seat_code VARCHAR(50) NOT NULL,
-    row_number INT NOT NULL,
+    `row_number` INT NOT NULL,
     col_number INT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_seat_code_per_plan (seating_plan_id, seat_code),
-    UNIQUE KEY uq_seat_position_per_plan (seating_plan_id, row_number, col_number),
+    UNIQUE KEY uq_seat_position_per_plan (seating_plan_id, `row_number`, col_number),
     FOREIGN KEY (seating_plan_id) REFERENCES seating_plans(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -108,6 +116,7 @@ CREATE TABLE seat_assignments (
     seat_code VARCHAR(50) NOT NULL,
     assigned_by INT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_assignment_exam_student (exam_id, student_id),
     UNIQUE KEY uq_assignment_exam_seat (exam_id, seat_code),
     FOREIGN KEY (exam_id, student_id) REFERENCES exam_students(exam_id, student_id) ON DELETE CASCADE,
@@ -121,8 +130,9 @@ CREATE TABLE student_reference_photos (
     student_id INT NOT NULL,
     image_path VARCHAR(255) NOT NULL,
     embedding_hash VARCHAR(255),
-    metadata JSON NULL,
+    meta_data JSON NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_student_image_path (student_id, image_path),
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -137,7 +147,10 @@ CREATE TABLE checkins (
     is_face_match TINYINT(1) NOT NULL DEFAULT 0,
     is_seat_ok TINYINT(1) NOT NULL DEFAULT 0,
     decision_status ENUM('pending', 'approved', 'denied') NOT NULL DEFAULT 'pending',
+    photo_path VARCHAR(255),
     checked_in_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     notes TEXT,
     UNIQUE KEY uq_checkins_exam_student (exam_id, student_id),
     FOREIGN KEY (exam_id, student_id) REFERENCES exam_students(exam_id, student_id) ON DELETE CASCADE,
@@ -154,6 +167,7 @@ CREATE TABLE violations (
     notes TEXT,
     evidence_image_path VARCHAR(255),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (exam_id, student_id) REFERENCES exam_students(exam_id, student_id) ON DELETE CASCADE,
     FOREIGN KEY (checkin_id) REFERENCES checkins(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

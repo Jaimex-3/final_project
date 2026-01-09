@@ -5,6 +5,7 @@ from .base import BaseModel
 class Exam(BaseModel):
     __tablename__ = "exams"
 
+    code = db.Column(db.String(50), unique=True, nullable=False)
     title = db.Column(db.String(255), nullable=False)
     start_at = db.Column(db.DateTime(timezone=False), nullable=False)
     end_at = db.Column(db.DateTime(timezone=False), nullable=False)
