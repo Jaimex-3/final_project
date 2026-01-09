@@ -36,7 +36,7 @@ router.get('/exam/:examId', requireProctorOrAdmin, async (req, res) => {
         const { examId } = req.params;
         const [rows] = await pool.query(
             `SELECT er.roster_id, er.assigned_seat, s.student_id, s.student_number,
-                    s.first_name, s.last_name, s.email, s.registration_number,
+                    s.first_name, s.last_name, s.email, s.phone, s.enrollment_year, s.major,
                     s.registered_photo_path
              FROM exam_rosters er
              JOIN students s ON er.student_id = s.student_id
@@ -58,7 +58,7 @@ router.get('/exam/:examId', requireProctorOrAdmin, async (req, res) => {
  */
 router.post('/student', requireAdmin, async (req, res) => {
     try {
-        const { studentNumber, firstName, lastName, email, registrationNumber, registeredPhotoPath } = req.body;
+        const { studentNumber, firstName, lastName, email, phone, enrollmentYear, major, registeredPhotoPath } = req.body;
         if (!studentNumber || !firstName || !lastName) {
             return res.status(400).json({ success: false, message: 'Missing required student fields' });
         }
@@ -73,9 +73,9 @@ router.post('/student', requireAdmin, async (req, res) => {
         }
 
         const [result] = await pool.query(
-            `INSERT INTO students (student_number, first_name, last_name, email, registration_number, registered_photo_path)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            [studentNumber, firstName, lastName, email || null, registrationNumber || null, registeredPhotoPath || null]
+            `INSERT INTO students (student_number, first_name, last_name, email, phone, enrollment_year, major, registered_photo_path)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [studentNumber, firstName, lastName, email || null, phone || null, enrollmentYear || null, major || null, registeredPhotoPath || null]
         );
 
         await logAudit(req.user.userId, 'CREATE_STUDENT', 'STUDENT', result.insertId, null, { studentNumber }, req.ip);
@@ -90,7 +90,7 @@ router.post('/student', requireAdmin, async (req, res) => {
 /**
  * POST /api/rosters/import
  * Import students via CSV and attach to an exam roster (Admin)
- * CSV header: StudentID,FirstName,LastName,Email,RegistrationNumber
+ * CSV header example: StudentID,FirstName,LastName,Email,Phone,EnrollmentYear,Major
  */
 router.post('/import', requireAdmin, upload.single('file'), async (req, res) => {
     try {
@@ -109,7 +109,7 @@ router.post('/import', requireAdmin, upload.single('file'), async (req, res) => 
         }
 
         const header = lines.shift().split(',').map(h => h.trim().toLowerCase());
-        const requiredHeaders = ['studentid', 'firstname', 'lastname', 'email', 'registrationnumber'];
+        const requiredHeaders = ['studentid', 'firstname', 'lastname'];
         const missing = requiredHeaders.filter(h => !header.includes(h));
         if (missing.length > 0) {
             return res.status(400).json({ success: false, message: `Missing CSV columns: ${missing.join(', ')}` });
@@ -140,14 +140,16 @@ router.post('/import', requireAdmin, upload.single('file'), async (req, res) => 
                 studentId = existing[0].student_id;
             } else {
                 const [result] = await pool.query(
-                    `INSERT INTO students (student_number, first_name, last_name, email, registration_number)
-                     VALUES (?, ?, ?, ?, ?)`,
+                    `INSERT INTO students (student_number, first_name, last_name, email, phone, enrollment_year, major)
+                     VALUES (?, ?, ?, ?, ?, ?, ?)`,
                     [
                         studentNumber,
                         firstName,
                         lastName,
                         record.email || null,
-                        record.registrationnumber || null
+                        record.phone || null,
+                        record.enrollmentyear || null,
+                        record.major || null
                     ]
                 );
                 studentId = result.insertId;

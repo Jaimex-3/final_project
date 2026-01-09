@@ -11,6 +11,13 @@ const { logAudit } = require('../utils/audit');
 
 const router = express.Router();
 
+function splitName(fullName = '') {
+    const parts = fullName.trim().split(/\s+/);
+    const firstName = parts[0] || '';
+    const lastName = parts.slice(1).join(' ') || '';
+    return { firstName, lastName, fullName: fullName || `${firstName} ${lastName}`.trim() };
+}
+
 /**
  * POST /api/auth/login
  * User login
@@ -73,8 +80,7 @@ router.post('/login', async (req, res) => {
                 username: user.username,
                 email: user.email,
                 role: user.role,
-                firstName: user.first_name,
-                lastName: user.last_name
+                ...splitName(user.full_name)
             }
         });
 
@@ -116,7 +122,7 @@ router.post('/logout', authenticateToken, async (req, res) => {
 router.get('/me', authenticateToken, async (req, res) => {
     try {
         const [users] = await pool.query(
-            'SELECT user_id, username, email, role, first_name, last_name, is_active FROM users WHERE user_id = ?',
+            'SELECT user_id, username, email, role, full_name, is_active FROM users WHERE user_id = ?',
             [req.user.userId]
         );
 
@@ -134,8 +140,7 @@ router.get('/me', authenticateToken, async (req, res) => {
                 username: users[0].username,
                 email: users[0].email,
                 role: users[0].role,
-                firstName: users[0].first_name,
-                lastName: users[0].last_name,
+                ...splitName(users[0].full_name),
                 isActive: users[0].is_active
             }
         });

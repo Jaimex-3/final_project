@@ -28,16 +28,20 @@ router.get('/exam/:examId', requireProctorOrAdmin, async (req, res) => {
         );
 
         if (plans.length === 0) {
-            return res.json({ success: true, plans: [], seats: [] });
+            return res.json({ success: true, plans: [], assignments: [] });
         }
 
-        const seatingPlanIds = plans.map(p => p.seating_plan_id);
-        const [seats] = await pool.query(
-            `SELECT * FROM seats WHERE seating_plan_id IN (?) ORDER BY row_number, column_number`,
-            [seatingPlanIds]
+        const planIds = plans.map(p => p.seating_plan_id);
+        const [assignments] = await pool.query(
+            `SELECT sa.*, s.student_number, s.first_name, s.last_name
+             FROM seat_assignments sa
+             JOIN students s ON sa.student_id = s.student_id
+             WHERE sa.seating_plan_id IN (?)
+             ORDER BY sa.row_number, sa.column_number`,
+            [planIds]
         );
 
-        res.json({ success: true, plans, seats });
+        res.json({ success: true, plans, assignments });
     } catch (error) {
         console.error('Get seating error:', error);
         res.status(500).json({ success: false, message: 'Internal server error' });
@@ -52,66 +56,36 @@ router.get('/exam/:examId', requireProctorOrAdmin, async (req, res) => {
  */
 router.post('/', requireAdmin, async (req, res) => {
     try {
-        const { examId, planName, planType, rows, columns, seatCodes } = req.body;
+        const { examId, planName, planType, rows, columns, roomId } = req.body;
         if (!examId || !planType) {
             return res.status(400).json({ success: false, message: 'examId and planType are required' });
         }
 
         const type = planType.toUpperCase();
-        if (!['GRID', 'SEAT_CODES'].includes(type)) {
+        if (!['GRID', 'CUSTOM'].includes(type)) {
             return res.status(400).json({ success: false, message: 'Invalid planType' });
         }
 
-        let seats = [];
-        if (type === 'GRID') {
-            seats = generateGridSeats(Number(rows), Number(columns));
-        } else if (Array.isArray(seatCodes)) {
-            seats = seatCodes.map(code => ({
-                seat_code: String(code).trim(),
-                row_number: null,
-                column_number: null
-            })).filter(s => s.seat_code);
-            if (seats.length === 0) {
-                return res.status(400).json({ success: false, message: 'seatCodes cannot be empty' });
-            }
+        if (type === 'GRID' && (!rows || !columns)) {
+            return res.status(400).json({ success: false, message: 'rows and columns are required for GRID layout' });
         }
 
-        const totalSeats = seats.length;
-
         const [planResult] = await pool.query(
-            `INSERT INTO seating_plans (exam_id, plan_name, plan_type, rows, columns, total_seats, created_by)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO seating_plans (exam_id, room_id, total_rows, total_columns, layout_type, created_by)
+             VALUES (?, ?, ?, ?, ?, ?)`,
             [
                 examId,
-                planName || 'Default Seating Plan',
-                type,
+                roomId || null,
                 type === 'GRID' ? rows : null,
                 type === 'GRID' ? columns : null,
-                totalSeats,
+                type,
                 req.user.userId
             ]
         );
 
-        const planId = planResult.insertId;
-        if (seats.length > 0) {
-            const values = seats.map(s => [
-                planId,
-                s.seat_code,
-                s.row_number,
-                s.column_number,
-                false,
-                null
-            ]);
-            await pool.query(
-                `INSERT INTO seats (seating_plan_id, seat_code, row_number, column_number, is_occupied, occupied_by_student_id)
-                 VALUES ?`,
-                [values]
-            );
-        }
+        await logAudit(req.user.userId, 'CREATE_SEATING_PLAN', 'SEATING_PLAN', planResult.insertId, null, { planType: type }, req.ip);
 
-        await logAudit(req.user.userId, 'CREATE_SEATING_PLAN', 'SEATING_PLAN', planId, null, { planType: type }, req.ip);
-
-        res.status(201).json({ success: true, seatingPlanId: planId, totalSeats });
+        res.status(201).json({ success: true, seatingPlanId: planResult.insertId });
     } catch (error) {
         console.error('Create seating error:', error);
         res.status(500).json({ success: false, message: 'Internal server error' });
@@ -132,31 +106,35 @@ router.post('/:planId/assignments', requireAdmin, async (req, res) => {
         }
 
         const [planRows] = await pool.query(
-            'SELECT exam_id FROM seating_plans WHERE seating_plan_id = ?',
+            'SELECT exam_id, total_rows, total_columns, layout_type FROM seating_plans WHERE seating_plan_id = ?',
             [planId]
         );
         if (planRows.length === 0) {
             return res.status(404).json({ success: false, message: 'Seating plan not found' });
         }
-        const examId = planRows[0].exam_id;
+        const { exam_id: examId, total_rows, total_columns, layout_type } = planRows[0];
 
-        const [seatRows] = await pool.query(
-            'SELECT seat_code FROM seats WHERE seating_plan_id = ?',
-            [planId]
-        );
-        const validSeats = new Set(seatRows.map(s => s.seat_code));
+        let validSeats = null;
+        if (layout_type === 'GRID' && total_rows && total_columns) {
+            validSeats = new Set(generateGridSeats(Number(total_rows), Number(total_columns)).map(s => s.seat_code));
+        }
 
         // Track assigned seats to prevent duplicates in payload
         const assignedSeats = new Set();
         for (const a of assignments) {
-            const validation = validateSeatAssignment(a.seatCode, validSeats, assignedSeats);
-            if (!validation.valid) {
-                return res.status(400).json({ success: false, message: validation.message });
+            if (!a.studentId || !a.seatCode) {
+                return res.status(400).json({ success: false, message: 'studentId and seatCode are required for each assignment' });
+            }
+            if (validSeats) {
+                const validation = validateSeatAssignment(a.seatCode, validSeats, assignedSeats);
+                if (!validation.valid) {
+                    return res.status(400).json({ success: false, message: validation.message });
+                }
             }
             assignedSeats.add(a.seatCode);
         }
 
-        // Apply assignments
+        // Apply assignments: update roster and seat_assignments
         for (const a of assignments) {
             await pool.query(
                 `INSERT INTO exam_rosters (exam_id, student_id, assigned_seat)
@@ -165,10 +143,22 @@ router.post('/:planId/assignments', requireAdmin, async (req, res) => {
                 [examId, a.studentId, a.seatCode]
             );
 
+            // Derive row/column for grid; leave null otherwise
+            let rowNumber = null;
+            let colNumber = null;
+            if (layout_type === 'GRID' && typeof a.seatCode === 'string') {
+                const match = a.seatCode.match(/^([A-Z]+)(\d+)$/i);
+                if (match) {
+                    rowNumber = match[1].toUpperCase().charCodeAt(0) - 64;
+                    colNumber = Number(match[2]);
+                }
+            }
+
             await pool.query(
-                `UPDATE seats SET is_occupied = TRUE, occupied_by_student_id = ?
-                 WHERE seating_plan_id = ? AND seat_code = ?`,
-                [a.studentId, planId, a.seatCode]
+                `INSERT INTO seat_assignments (seating_plan_id, student_id, seat_code, row_number, column_number)
+                 VALUES (?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE seat_code = VALUES(seat_code), row_number = VALUES(row_number), column_number = VALUES(column_number)`,
+                [planId, a.studentId, a.seatCode, rowNumber, colNumber]
             );
         }
 

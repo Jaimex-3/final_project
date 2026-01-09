@@ -29,7 +29,7 @@ router.get('/checkins', async (req, res) => {
              JOIN students s ON ci.student_id = s.student_id
              JOIN users u ON ci.proctor_id = u.user_id
              WHERE ci.exam_id = ?
-             ORDER BY ci.check_in_timestamp DESC`,
+             ORDER BY ci.check_in_time DESC`,
             [examId]
         );
 
@@ -52,13 +52,13 @@ router.get('/mismatches', async (req, res) => {
         }
 
         const [rows] = await pool.query(
-            `SELECT ci.check_in_id, ci.student_id, ci.exam_id, ci.check_in_timestamp,
-                    ci.verification_result, ci.confidence_score, ci.assigned_seat, ci.actual_seat,
+            `SELECT ci.check_in_id, ci.student_id, ci.exam_id, ci.check_in_time,
+                    ci.verification_result, ci.confidence_score, ci.assigned_seat, ci.actual_seat, ci.seat_match,
                     s.student_number, s.first_name, s.last_name
              FROM check_ins ci
              JOIN students s ON ci.student_id = s.student_id
              WHERE ci.exam_id = ?
-             AND (ci.verification_result = 'NO_MATCH' OR ci.actual_seat <> ci.assigned_seat)`,
+             AND (ci.verification_result = 'NO_MATCH' OR ci.seat_match = FALSE)`,
             [examId]
         );
 
@@ -84,7 +84,7 @@ router.get('/violations', async (req, res) => {
              FROM violations v
              JOIN students s ON v.student_id = s.student_id
              WHERE v.exam_id = ?
-             ORDER BY v.violation_timestamp DESC`,
+             ORDER BY v.reported_at DESC`,
             [examId]
         );
 

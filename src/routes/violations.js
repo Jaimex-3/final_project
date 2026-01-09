@@ -62,19 +62,18 @@ router.get('/exam/:examId', async (req, res) => {
 
         let query = `
             SELECT v.*, s.student_number, s.first_name, s.last_name,
-                   u.username as proctor_username, u.first_name as proctor_first_name,
-                   u.last_name as proctor_last_name,
-                   r.username as reviewed_by_username
+                   reporter.username as reported_by_username, reporter.full_name as reported_by_name,
+                   resolver.username as resolved_by_username
             FROM violations v
             JOIN students s ON v.student_id = s.student_id
-            JOIN users u ON v.proctor_id = u.user_id
-            LEFT JOIN users r ON v.reviewed_by = r.user_id
+            JOIN users reporter ON v.reported_by = reporter.user_id
+            LEFT JOIN users resolver ON v.resolved_by = resolver.user_id
             WHERE v.exam_id = ?
         `;
         const params = [examId];
 
         if (category) {
-            query += ' AND v.violation_category = ?';
+            query += ' AND v.violation_type = ?';
             params.push(category);
         }
 
@@ -88,7 +87,7 @@ router.get('/exam/:examId', async (req, res) => {
             params.push(status);
         }
 
-        query += ' ORDER BY v.violation_timestamp DESC';
+        query += ' ORDER BY v.reported_at DESC';
 
         const [violations] = await pool.query(query, params);
 
@@ -115,13 +114,12 @@ router.get('/:id', async (req, res) => {
 
         const [violations] = await pool.query(
             `SELECT v.*, s.student_number, s.first_name, s.last_name,
-                    u.username as proctor_username, u.first_name as proctor_first_name,
-                    u.last_name as proctor_last_name,
-                    r.username as reviewed_by_username
+                    reporter.username as reported_by_username, reporter.full_name as reported_by_name,
+                    resolver.username as resolved_by_username
              FROM violations v
              JOIN students s ON v.student_id = s.student_id
-             JOIN users u ON v.proctor_id = u.user_id
-             LEFT JOIN users r ON v.reviewed_by = r.user_id
+             JOIN users reporter ON v.reported_by = reporter.user_id
+             LEFT JOIN users resolver ON v.resolved_by = resolver.user_id
              WHERE v.violation_id = ?`,
             [id]
         );
@@ -155,13 +153,14 @@ router.post('/', upload.single('evidence'), async (req, res) => {
         const {
             examId,
             studentId,
-            violationCategory,
-            reason,
-            severity
+            violationType,
+            description,
+            severity,
+            checkInId
         } = req.body;
 
         // Validate required fields
-        if (!examId || !studentId || !violationCategory || !reason || !severity) {
+        if (!examId || !studentId || !violationType || !description || !severity) {
             return res.status(400).json({
                 success: false,
                 message: 'Missing required fields'
@@ -173,7 +172,7 @@ router.post('/', upload.single('evidence'), async (req, res) => {
                                 'DISRUPTIVE_BEHAVIOR', 'LATE_ARRIVAL', 'OTHER'];
         const validSeverities = ['LOW', 'MEDIUM', 'HIGH'];
 
-        if (!validCategories.includes(violationCategory)) {
+        if (!validCategories.includes(violationType)) {
             return res.status(400).json({
                 success: false,
                 message: 'Invalid violation category'
@@ -198,10 +197,9 @@ router.post('/', upload.single('evidence'), async (req, res) => {
 
         // Insert violation
         const [result] = await pool.query(
-            `INSERT INTO violations (exam_id, student_id, violation_category, violation_timestamp,
-                                    reason, severity, evidence_image_path, proctor_id)
-             VALUES (?, ?, ?, NOW(), ?, ?, ?, ?)`,
-            [examId, studentId, violationCategory, reason, severity, evidencePath, req.user.userId]
+            `INSERT INTO violations (check_in_id, exam_id, student_id, reported_by, violation_type, severity, description, evidence_photo_path, reported_at, status)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), 'RECORDED')`,
+            [checkInId || null, examId, studentId, req.user.userId, violationType, severity, description, evidencePath]
         );
 
         // Log audit
@@ -211,7 +209,7 @@ router.post('/', upload.single('evidence'), async (req, res) => {
             'VIOLATION',
             result.insertId,
             null,
-            { studentId, examId, violationCategory, severity },
+            { studentId, examId, violationType, severity },
             req.ip
         );
 
@@ -236,7 +234,7 @@ router.post('/', upload.single('evidence'), async (req, res) => {
 router.patch('/:id/status', requireAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const { status } = req.body;
+        const { status, resolutionNotes } = req.body;
 
         const validStatuses = ['RECORDED', 'REVIEWED', 'RESOLVED', 'DISMISSED'];
         if (!validStatuses.includes(status)) {
@@ -259,12 +257,15 @@ router.patch('/:id/status', requireAdmin, async (req, res) => {
             });
         }
 
-        // Update status
+        // Update status/resolution
         await pool.query(
             `UPDATE violations 
-             SET status = ?, reviewed_by = ?, reviewed_at = NOW()
+             SET status = ?,
+                 resolved_by = CASE WHEN ? IN ('RESOLVED','DISMISSED') THEN ? ELSE resolved_by END,
+                 resolved_at = CASE WHEN ? IN ('RESOLVED','DISMISSED') THEN NOW() ELSE resolved_at END,
+                 resolution_notes = COALESCE(?, resolution_notes)
              WHERE violation_id = ?`,
-            [status, req.user.userId, id]
+            [status, status, req.user.userId, status, resolutionNotes || null, id]
         );
 
         // Log audit
@@ -274,7 +275,7 @@ router.patch('/:id/status', requireAdmin, async (req, res) => {
             'VIOLATION',
             id,
             { status: oldViolation[0].status },
-            { status },
+            { status, resolutionNotes },
             req.ip
         );
 

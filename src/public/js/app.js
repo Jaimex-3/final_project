@@ -173,10 +173,9 @@ async function loadExams() {
                         <h4>${exam.exam_name}</h4>
                         <p><strong>Code:</strong> ${exam.exam_code}</p>
                         <p><strong>Date:</strong> ${formatDate(exam.exam_date)}</p>
-                        <p><strong>Time:</strong> ${exam.exam_time}</p>
-                        <p><strong>Location:</strong> ${exam.room_location || 'N/A'}</p>
-                        <p><strong>Duration:</strong> ${exam.duration_minutes} minutes</p>
-                        <p><strong>Capacity:</strong> ${exam.max_capacity}</p>
+                        <p><strong>Time:</strong> ${exam.start_time || ''} ${exam.end_time ? ' - ' + exam.end_time : ''}</p>
+                        <p><strong>Room:</strong> ${exam.room_code || 'N/A'} ${exam.room_name ? `(${exam.room_name})` : ''}</p>
+                        <p><strong>Duration:</strong> ${exam.duration_minutes || '-'} minutes</p>
                         <span class="exam-status status-${exam.status.toLowerCase()}">${exam.status}</span>
                     </div>
                 `).join('');
@@ -399,9 +398,9 @@ async function handleViolation(e) {
     const formData = new FormData();
     formData.append('examId', document.getElementById('violationExamSelect').value);
     formData.append('studentId', document.getElementById('violationStudentId').value);
-    formData.append('violationCategory', document.getElementById('violationCategory').value);
+    formData.append('violationType', document.getElementById('violationCategory').value);
     formData.append('severity', document.getElementById('violationSeverity').value);
-    formData.append('reason', document.getElementById('violationReason').value);
+    formData.append('description', document.getElementById('violationReason').value);
     const evidence = document.getElementById('violationEvidence').files[0];
     if (evidence) formData.append('evidence', evidence);
 

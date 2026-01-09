@@ -23,10 +23,11 @@ router.get('/', async (req, res) => {
         
         let query = `
             SELECT e.*, u.username as created_by_username,
-                   u.first_name as created_by_first_name,
-                   u.last_name as created_by_last_name
+                   u.full_name as created_by_full_name,
+                   r.room_code, r.room_name, r.building, r.floor
             FROM exams e
             LEFT JOIN users u ON e.created_by = u.user_id
+            LEFT JOIN rooms r ON e.room_id = r.room_id
         `;
         const params = [];
 
@@ -35,7 +36,7 @@ router.get('/', async (req, res) => {
             params.push(status);
         }
 
-        query += ' ORDER BY e.exam_date DESC, e.exam_time DESC';
+        query += ' ORDER BY e.exam_date DESC, e.start_time DESC';
 
         const [exams] = await pool.query(query, params);
 
@@ -62,10 +63,11 @@ router.get('/:id', async (req, res) => {
 
         const [exams] = await pool.query(
             `SELECT e.*, u.username as created_by_username,
-                    u.first_name as created_by_first_name,
-                    u.last_name as created_by_last_name
+                    u.full_name as created_by_full_name,
+                    r.room_code, r.room_name, r.building, r.floor
              FROM exams e
              LEFT JOIN users u ON e.created_by = u.user_id
+             LEFT JOIN rooms r ON e.room_id = r.room_id
              WHERE e.exam_id = ?`,
             [id]
         );
@@ -100,14 +102,14 @@ router.post('/', requireAdmin, async (req, res) => {
             examCode,
             examName,
             examDate,
-            examTime,
-            roomLocation,
+            startTime,
+            endTime,
+            roomId,
             durationMinutes,
-            maxCapacity
         } = req.body;
 
         // Validate required fields
-        if (!examCode || !examName || !examDate || !examTime) {
+        if (!examCode || !examName || !examDate || !startTime || !endTime || !durationMinutes) {
             return res.status(400).json({
                 success: false,
                 message: 'Missing required fields'
@@ -129,10 +131,10 @@ router.post('/', requireAdmin, async (req, res) => {
 
         // Insert exam
         const [result] = await pool.query(
-            `INSERT INTO exams (exam_code, exam_name, exam_date, exam_time, room_location, 
-                               duration_minutes, max_capacity, status, created_by)
+            `INSERT INTO exams (exam_code, exam_name, exam_date, start_time, end_time, 
+                               duration_minutes, room_id, status, created_by)
              VALUES (?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?)`,
-            [examCode, examName, examDate, examTime, roomLocation, durationMinutes, maxCapacity, req.user.userId]
+            [examCode, examName, examDate, startTime, endTime, durationMinutes, roomId || null, req.user.userId]
         );
 
         // Log audit
@@ -171,10 +173,10 @@ router.put('/:id', requireAdmin, async (req, res) => {
             examCode,
             examName,
             examDate,
-            examTime,
-            roomLocation,
+            startTime,
+            endTime,
+            roomId,
             durationMinutes,
-            maxCapacity,
             status
         } = req.body;
 
@@ -191,10 +193,10 @@ router.put('/:id', requireAdmin, async (req, res) => {
         // Update exam
         await pool.query(
             `UPDATE exams 
-             SET exam_code = ?, exam_name = ?, exam_date = ?, exam_time = ?,
-                 room_location = ?, duration_minutes = ?, max_capacity = ?, status = ?
+             SET exam_code = ?, exam_name = ?, exam_date = ?, start_time = ?, end_time = ?,
+                 room_id = ?, duration_minutes = ?, status = ?
              WHERE exam_id = ?`,
-            [examCode, examName, examDate, examTime, roomLocation, durationMinutes, maxCapacity, status, id]
+            [examCode, examName, examDate, startTime, endTime, roomId || null, durationMinutes, status, id]
         );
 
         // Log audit
@@ -204,7 +206,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
             'EXAM',
             id,
             oldExam[0],
-            { examCode, examName, examDate, examTime, status },
+            { examCode, examName, examDate, startTime, endTime, status },
             req.ip
         );
 

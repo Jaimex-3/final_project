@@ -11,7 +11,6 @@ const { authenticateToken, requireProctorOrAdmin } = require('../middleware/auth
 const { logAudit } = require('../utils/audit');
 const fs = require('fs').promises;
 const { runVerification } = require('../utils/ml');
-const { validateSeatAssignment } = require('../utils/seating');
 
 const router = express.Router();
 
@@ -63,13 +62,12 @@ router.get('/exam/:examId', async (req, res) => {
 
         const [checkIns] = await pool.query(
             `SELECT ci.*, s.student_number, s.first_name, s.last_name, s.email,
-                    u.username as proctor_username, u.first_name as proctor_first_name,
-                    u.last_name as proctor_last_name
+                    u.username as proctor_username, u.full_name as proctor_full_name
              FROM check_ins ci
              JOIN students s ON ci.student_id = s.student_id
              JOIN users u ON ci.proctor_id = u.user_id
              WHERE ci.exam_id = ?
-             ORDER BY ci.check_in_timestamp DESC`,
+             ORDER BY ci.check_in_time DESC`,
             [examId]
         );
 
@@ -170,22 +168,6 @@ router.post('/', upload.single('photo'), async (req, res) => {
         const capturedPhotoPath = req.file.path;
         const registeredPhotoPath = student[0].registered_photo_path;
 
-        // Validate seat if provided
-        if (actualSeat) {
-            const [seatRows] = await pool.query(
-                `SELECT seat_code FROM seats 
-                 WHERE seat_code = ? AND seating_plan_id IN (
-                    SELECT seating_plan_id FROM seating_plans WHERE exam_id = ?
-                 )`,
-                [actualSeat, examId]
-            );
-            const seatSet = new Set(seatRows.map(s => s.seat_code));
-            const validation = validateSeatAssignment(actualSeat, seatSet);
-            if (!validation.valid) {
-                return res.status(400).json({ success: false, message: validation.message });
-            }
-        }
-
         // Perform ML verification
         let verificationResult = {
             success: false,
@@ -210,36 +192,30 @@ router.post('/', upload.single('photo'), async (req, res) => {
             capturedPhotoPath
         );
 
+        // Determine seat match
+        const assignedSeat = rosterEntry[0].assigned_seat || null;
+        const actualSeatValue = actualSeat || assignedSeat;
+        const seatMatch = !actualSeatValue || !assignedSeat ? true : actualSeatValue === assignedSeat;
+
         // Insert check-in record
         const [result] = await pool.query(
-            `INSERT INTO check_ins (exam_id, student_id, check_in_timestamp, captured_photo_path,
+            `INSERT INTO check_ins (exam_id, student_id, proctor_id, check_in_time, captured_photo_path,
                                    verification_result, confidence_score, assigned_seat, actual_seat,
-                                   proctor_id, notes)
-             VALUES (?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?)`,
+                                   seat_match, notes)
+             VALUES (?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?)`,
             [
                 examId,
                 studentId,
+                req.user.userId,
                 relativePhotoPath,
                 verificationStatus,
                 verificationResult.confidence_score || 0,
-                rosterEntry[0].assigned_seat,
-                actualSeat || rosterEntry[0].assigned_seat,
-                req.user.userId,
+                assignedSeat,
+                actualSeatValue,
+                seatMatch,
                 notes || null
             ]
         );
-
-        // Update seat occupation if seating plan exists
-        if (actualSeat) {
-            await pool.query(
-                `UPDATE seats 
-                 SET is_occupied = TRUE, occupied_by_student_id = ?
-                 WHERE seat_code = ? AND seating_plan_id IN (
-                     SELECT seating_plan_id FROM seating_plans WHERE exam_id = ?
-                 )`,
-                [studentId, actualSeat, examId]
-            );
-        }
 
         // Log audit
         await logAudit(
@@ -253,16 +229,16 @@ router.post('/', upload.single('photo'), async (req, res) => {
         );
 
         // Check for seat mismatch and create violation if needed
-        if (actualSeat && actualSeat !== rosterEntry[0].assigned_seat) {
+        if (actualSeatValue && assignedSeat && actualSeatValue !== assignedSeat) {
             await pool.query(
-                `INSERT INTO violations (exam_id, student_id, violation_category, violation_timestamp,
-                                        reason, severity, proctor_id)
-                 VALUES (?, ?, 'SEAT_MISMATCH', NOW(), ?, 'LOW', ?)`,
+                `INSERT INTO violations (check_in_id, exam_id, student_id, reported_by, violation_type, severity, description, reported_at, status)
+                 VALUES (?, ?, ?, ?, 'SEAT_MISMATCH', 'LOW', ?, NOW(), 'RECORDED')`,
                 [
+                    result.insertId,
                     examId,
                     studentId,
-                    `Student sat in seat ${actualSeat} instead of assigned seat ${rosterEntry[0].assigned_seat}`,
-                    req.user.userId
+                    req.user.userId,
+                    `Student sat in seat ${actualSeatValue} instead of assigned seat ${assignedSeat}`
                 ]
             );
         }
@@ -270,15 +246,15 @@ router.post('/', upload.single('photo'), async (req, res) => {
         // Check for identity mismatch and create violation if needed
         if (verificationStatus === 'NO_MATCH') {
             await pool.query(
-                `INSERT INTO violations (exam_id, student_id, violation_category, violation_timestamp,
-                                        reason, severity, evidence_image_path, proctor_id)
-                 VALUES (?, ?, 'IDENTITY_MISMATCH', NOW(), ?, 'HIGH', ?, ?)`,
+                `INSERT INTO violations (check_in_id, exam_id, student_id, reported_by, violation_type, severity, description, evidence_photo_path, reported_at, status)
+                 VALUES (?, ?, ?, ?, 'IDENTITY_MISMATCH', 'HIGH', ?, ?, NOW(), 'RECORDED')`,
                 [
+                    result.insertId,
                     examId,
                     studentId,
                     `Photo verification failed with confidence score ${verificationResult.confidence_score}%`,
-                    relativePhotoPath,
-                    req.user.userId
+                    req.user.userId,
+                    relativePhotoPath
                 ]
             );
         }
