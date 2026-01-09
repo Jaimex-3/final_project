@@ -9,3 +9,9 @@ src/backend/migrations/__pycache__/
 src/frontend/package-lock.json
 src/frontend/node_modules/
 venv
+
+# Environment files
+.env
+src/backend/.env
+src/backend/.env.*
+!src/backend/.env.example
