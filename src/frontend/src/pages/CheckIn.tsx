@@ -3,6 +3,7 @@ import { submitCheckin } from "../api/checkins";
 import { fetchExams } from "../api/exams";
 import { fetchRoster } from "../api/seating";
 import { submitViolation } from "../api/violations";
+import { useToast } from "../context/ToastContext";
 
 type ExamOption = { id: number; title: string };
 type RosterItem = { student_id: number; student: { full_name: string; student_number: string } };
@@ -19,6 +20,7 @@ export default function CheckIn() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [loggingViolation, setLoggingViolation] = useState(false);
+  const toast = useToast();
 
   const filteredRoster = useMemo(
     () =>
@@ -33,14 +35,20 @@ export default function CheckIn() {
   useEffect(() => {
     fetchExams()
       .then((items) => setExams(items || []))
-      .catch(() => setExams([]));
+      .catch(() => {
+        setExams([]);
+        toast.error("Failed to load exams");
+      });
   }, []);
 
   useEffect(() => {
     if (!examId) return;
     fetchRoster(Number(examId))
       .then((items) => setRoster(items || []))
-      .catch(() => setRoster([]));
+      .catch(() => {
+        setRoster([]);
+        toast.error("Failed to load roster");
+      });
   }, [examId]);
 
   const handleSubmit = async (e: FormEvent) => {
@@ -62,7 +70,9 @@ export default function CheckIn() {
       setResult(res);
       setMessage(`Check-in ${res.decision_status || ""}`.trim());
     } catch (err: any) {
-      setMessage(err?.response?.data?.message || "Failed to check in");
+      const msg = err?.response?.data?.message || "Failed to check in";
+      setMessage(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -80,8 +90,11 @@ export default function CheckIn() {
         notes: "Logged from check-in screen",
       });
       setMessage("Violation logged.");
+      toast.success("Violation logged");
     } catch (err: any) {
-      setMessage(err?.response?.data?.message || "Failed to log violation");
+      const msg = err?.response?.data?.message || "Failed to log violation";
+      setMessage(msg);
+      toast.error(msg);
     } finally {
       setLoggingViolation(false);
     }
