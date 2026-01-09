@@ -38,3 +38,6 @@ __pycache__/
 *.tmp
 *.bak
 *.swp
+
+# Local deliverable artifacts
+Final_Exam_Security_Project.pdf
