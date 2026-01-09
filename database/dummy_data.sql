@@ -4,17 +4,29 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
--- Clean existing data for idempotent import
-TRUNCATE TABLE audit_logs;
-TRUNCATE TABLE violations;
-TRUNCATE TABLE check_ins;
-TRUNCATE TABLE seat_assignments;
-TRUNCATE TABLE seating_plans;
-TRUNCATE TABLE exam_rosters;
-TRUNCATE TABLE students;
-TRUNCATE TABLE exams;
-TRUNCATE TABLE rooms;
-TRUNCATE TABLE users;
+-- Clean existing data for idempotent import (use DELETE to avoid FK issues when tools ignore FK checks)
+DELETE FROM audit_logs;
+DELETE FROM violations;
+DELETE FROM check_ins;
+DELETE FROM seat_assignments;
+DELETE FROM seating_plans;
+DELETE FROM exam_rosters;
+DELETE FROM students;
+DELETE FROM exams;
+DELETE FROM rooms;
+DELETE FROM users;
+
+-- Reset auto-increment counters
+ALTER TABLE audit_logs AUTO_INCREMENT = 1;
+ALTER TABLE violations AUTO_INCREMENT = 1;
+ALTER TABLE check_ins AUTO_INCREMENT = 1;
+ALTER TABLE seat_assignments AUTO_INCREMENT = 1;
+ALTER TABLE seating_plans AUTO_INCREMENT = 1;
+ALTER TABLE exam_rosters AUTO_INCREMENT = 1;
+ALTER TABLE students AUTO_INCREMENT = 1;
+ALTER TABLE exams AUTO_INCREMENT = 1;
+ALTER TABLE rooms AUTO_INCREMENT = 1;
+ALTER TABLE users AUTO_INCREMENT = 1;
 
 -- Insert Rooms
 INSERT INTO rooms (room_code, room_name, building, floor, capacity, has_camera) VALUES
